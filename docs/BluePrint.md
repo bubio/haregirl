@@ -3,7 +3,7 @@
 Game Boy Colorエミュレーターの開発です。
 
 Odin言語で書いたBubiBoy Liteのコアを、Hare言語に移植して使用します。
-SDL3をマルチメディア層に使いますが、既存のバインディングは古い可能性があるため、最低限のものを自前で実装する必要があります。
+SDL2をマルチメディア層に使いますが、既存のバインディングは古い可能性があるため、最低限のものを自前で実装する必要があるかもしれません。
 
 
 ## この文書について
@@ -14,15 +14,13 @@ SDL3をマルチメディア層に使いますが、既存のバインディン�
 
 ## 対応プラットフォーム
 
-Linuxを対象とします。
 
 #### サポートするOSバージョンと優先順位
 
-1. macOS: 13.5以上 / Intel / Appleシリコン
-2. Linux: Ubuntu 24.04以上 / amd64 / arm64
-3. Windows: Windows 11以上 / x64 / arm64
+1. Linux: Ubuntu 22.04以上 / amd64 / arm64
+2. FreeBSD: 14.4以上 / x64
 
-macOSでの開発が完了したのちに、他プラットフォームへ広げていきます。
+Linuxでの開発が完了したのちに、他プラットフォームへ広げていきます。
 
 #### 頒布方法と形式
 
@@ -30,16 +28,17 @@ GitHubのリリースで頒布します。
 
 コマンドラインで実行するアプリとして提供します。
 
-1. macOS: zip
-2. Linux: zip
-3. Windows: zip
+1. Linux: zip
+2. FreeBSD: zip
 
 
 ## 技術スタック
 
-- 正規のインストール方法でRux言語をインストールします。
-- マルチメディア層にはSDL3を使います。
-- SDL3はシステムにインストールされているものを使用します。
+- Hare言語
+- マルチメディア層にはSDL2を使います。
+- SDL2はシステムにインストールされているものを使用します。
+
+libsdl2-devとHare言語はインストール済みです。
 
 ## 機能要件
 
@@ -81,7 +80,9 @@ GitHubのリリースで頒布します。
 
 ## 参考
 
-- BubiBoy Lite : ~/dev/_Emu/BubiBoyLite/
+- BubiBoy Lite : ~/Development/BubiBoyLite
+- Hare Boy : 
+- hare-sdl2 : https://github.com/Angluca/hare-sdl2
   
 
 ## 注意事項
