@@ -1,0 +1,7 @@
+/haregirl
+/build/
+/dist/
+/tests/roms/
+*.sav
+*.state
+

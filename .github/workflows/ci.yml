@@ -1,0 +1,17 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Hare
+        run: |
+          curl --fail --silent --show-error --location https://harelang.org/install.sh | bash
+      - name: Build and smoke test
+        run: |
+          PATH="$HOME/.local/bin:$PATH" ./scripts/test.sh
