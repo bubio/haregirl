@@ -120,6 +120,8 @@ export fn main() void = {
 	test_interrupts();
 	test_serial();
 	test_rom_runner();
+	test_blargg_runner();
+	test_blargg_roms();
 	test_mooneye_roms();
 	fmt::println("core tests passed")!;
 	os::exit(0);

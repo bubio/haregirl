@@ -1,6 +1,4 @@
 use fmt;
-use fs;
-use io;
 use os;
 use core;
 
@@ -37,49 +35,6 @@ const mooneye_cases: [15]rom_case = [
 	rom_case { name = "serial/boot_sclk_align-dmgABCmgb", path = "tests/roms/mooneye-test-suite/mts-20221022-1426-a2dac64/acceptance/serial/boot_sclk_align-dmgABCmgb.gb", expectation = rom_expectation::Known_Limitation, limitation = "boot-aligned serial clock timing is not modeled yet, so SC=$81 completes immediately instead of on the post-boot clock phase" },
 ];
 
-fn load_file(path: str) ([]u8 | void) = {
-	const file = match (os::open(path)) {
-	case let file: io::file =>
-		yield file;
-	case =>
-		return;
-	};
-	defer io::close(file)!;
-
-	const st = match (os::fstat(file)) {
-	case let st: fs::filestat =>
-		yield st;
-	case =>
-		return;
-	};
-
-	let buf: []u8 = alloc([0...], st.sz: size)!;
-	match (io::readall(file, buf)) {
-	case let n: size =>
-		if (n == len(buf)) return buf;
-	case =>
-		void;
-	};
-	free(buf);
-};
-
-fn rom_status_name(status: core::Rom_Status) str = {
-	switch (status) {
-	case core::Rom_Status::Running =>
-		return "running";
-	case core::Rom_Status::Passed =>
-		return "passed";
-	case core::Rom_Status::Failed =>
-		return "failed";
-	case core::Rom_Status::Timed_Out =>
-		return "timed_out";
-	case core::Rom_Status::Illegal_Opcode =>
-		return "illegal_opcode";
-	case core::Rom_Status::Stopped =>
-		return "stopped";
-	};
-};
-
 fn mooneye_result_name(result: core::Mooneye_Result) str = {
 	switch (result) {
 	case core::Mooneye_Result::None =>
@@ -102,7 +57,7 @@ fn fail_mooneye_case(tc: rom_case, result: core::Rom_Run_Result) never = {
 };
 
 fn run_mooneye_case(tc: rom_case) (core::Rom_Run_Result | void) = {
-	const rom = match (load_file(tc.path)) {
+	const rom = match (load_rom_file(tc.path)) {
 	case let rom: []u8 =>
 		yield rom;
 	case =>
@@ -117,6 +72,7 @@ fn run_mooneye_case(tc: rom_case) (core::Rom_Run_Result | void) = {
 		max_steps = MOONEYE_TIMEOUT_STEPS,
 		max_cycles = MOONEYE_TIMEOUT_CYCLES,
 		stop_on_mooneye = true,
+		stop_on_blargg = false,
 	});
 	return result;
 };
@@ -137,6 +93,7 @@ export fn test_rom_runner() void = {
 		max_steps = 64,
 		max_cycles = 4096,
 		stop_on_mooneye = true,
+		stop_on_blargg = false,
 	});
 	check(pass.status == core::Rom_Status::Passed,
 		"ROM runner detects Mooneye pass breakpoint");
@@ -158,6 +115,7 @@ export fn test_rom_runner() void = {
 		max_steps = 64,
 		max_cycles = 4096,
 		stop_on_mooneye = true,
+		stop_on_blargg = false,
 	});
 	check(fail.status == core::Rom_Status::Failed,
 		"ROM runner detects Mooneye fail breakpoint");
@@ -181,6 +139,7 @@ export fn test_rom_runner() void = {
 		max_steps = 256,
 		max_cycles = 16384,
 		stop_on_mooneye = true,
+		stop_on_blargg = false,
 	});
 	check(serial.status == core::Rom_Status::Passed,
 		"ROM runner detects serial pass signature");

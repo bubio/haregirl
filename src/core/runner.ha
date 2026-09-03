@@ -1,7 +1,15 @@
 const MOONEYE_PASS: [6]u8 = [3, 5, 8, 13, 21, 34];
 const MOONEYE_FAIL: [6]u8 = [0x42, 0x42, 0x42, 0x42, 0x42, 0x42];
+const BLARGG_PASS: [6]u8 = [0x50, 0x61, 0x73, 0x73, 0x65, 0x64];
+const BLARGG_FAIL: [6]u8 = [0x46, 0x61, 0x69, 0x6C, 0x65, 0x64];
 
 export type Mooneye_Result = enum {
+	None,
+	Pass,
+	Fail,
+};
+
+export type Blargg_Result = enum {
 	None,
 	Pass,
 	Fail,
@@ -29,11 +37,13 @@ export type Rom_Run_Options = struct {
 	max_steps: u64,
 	max_cycles: u64,
 	stop_on_mooneye: bool,
+	stop_on_blargg: bool,
 };
 
 export type Rom_Run_Result = struct {
 	status: Rom_Status,
 	mooneye_result: Mooneye_Result,
+	blargg_result: Blargg_Result,
 	steps: u64,
 	cycles: u64,
 	last_pc: u16,
@@ -75,25 +85,39 @@ fn mooneye_serial_result(bus: *Bus) Mooneye_Result = {
 	return Mooneye_Result::None;
 };
 
-fn rom_result_status(result: Mooneye_Result) Rom_Status = {
-	switch (result) {
-	case Mooneye_Result::Pass =>
-		return Rom_Status::Passed;
-	case Mooneye_Result::Fail =>
-		return Rom_Status::Failed;
-	case =>
-		return Rom_Status::Running;
+fn blargg_serial_result(bus: *Bus) Blargg_Result = {
+	if (len(bus.serial_log) < len(BLARGG_PASS)) return Blargg_Result::None;
+	for (let i = 0z; i + len(BLARGG_PASS) <= len(bus.serial_log); i += 1) {
+		if (mooneye_bytes_match(bus.serial_log, i, BLARGG_PASS[..])) {
+			return Blargg_Result::Pass;
+		};
+		if (mooneye_bytes_match(bus.serial_log, i, BLARGG_FAIL[..])) {
+			return Blargg_Result::Fail;
+		};
 	};
+	return Blargg_Result::None;
+};
+
+fn rom_result_status(passed: bool, failed: bool) Rom_Status = {
+	if (passed) {
+		return Rom_Status::Passed;
+	};
+	if (failed) {
+		return Rom_Status::Failed;
+	};
+	return Rom_Status::Running;
 };
 
 fn rom_runner_snapshot(
 	runner: *Rom_Runner,
 	status: Rom_Status,
 	mooneye_result: Mooneye_Result,
+	blargg_result: Blargg_Result,
 ) Rom_Run_Result = {
 	return Rom_Run_Result {
 		status = status,
 		mooneye_result = mooneye_result,
+		blargg_result = blargg_result,
 		steps = runner.steps,
 		cycles = runner.bus.cycles,
 		last_pc = runner.last_pc,
@@ -141,24 +165,45 @@ export fn rom_runner_run(
 				const mooneye = mooneye_register_result(&runner.cpu);
 				if (mooneye != Mooneye_Result::None) {
 					return rom_runner_snapshot(runner,
-						rom_result_status(mooneye), mooneye);
+						rom_result_status(
+							mooneye == Mooneye_Result::Pass,
+							mooneye == Mooneye_Result::Fail,
+						),
+						mooneye, Blargg_Result::None);
 				};
 			};
 			const serial = mooneye_serial_result(&runner.bus);
 			if (serial != Mooneye_Result::None) {
 				return rom_runner_snapshot(runner,
-					rom_result_status(serial), serial);
+					rom_result_status(
+						serial == Mooneye_Result::Pass,
+						serial == Mooneye_Result::Fail,
+					),
+					serial, Blargg_Result::None);
+			};
+		};
+		if (options.stop_on_blargg) {
+			const blargg = blargg_serial_result(&runner.bus);
+			if (blargg != Blargg_Result::None) {
+				return rom_runner_snapshot(runner,
+					rom_result_status(
+						blargg == Blargg_Result::Pass,
+						blargg == Blargg_Result::Fail,
+					),
+					Mooneye_Result::None, blargg);
 			};
 		};
 		if (runner.cpu.illegal_opcode) {
 			return rom_runner_snapshot(runner,
-				Rom_Status::Illegal_Opcode, Mooneye_Result::None);
+				Rom_Status::Illegal_Opcode, Mooneye_Result::None,
+				Blargg_Result::None);
 		};
 		if (runner.cpu.stopped) {
 			return rom_runner_snapshot(runner,
-				Rom_Status::Stopped, Mooneye_Result::None);
+				Rom_Status::Stopped, Mooneye_Result::None,
+				Blargg_Result::None);
 		};
 	};
 	return rom_runner_snapshot(runner, Rom_Status::Timed_Out,
-		Mooneye_Result::None);
+		Mooneye_Result::None, Blargg_Result::None);
 };
