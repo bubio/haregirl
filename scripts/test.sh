@@ -16,3 +16,16 @@ fi
 # (SDL2 初期化・ウィンドウ/レンダラー/テクスチャ生成・描画・破棄)が
 # エラーなく完走することを確認する。--frames で自動終了させる。
 SDL_VIDEODRIVER=dummy "$root_dir/build/haregirl" --test-screen --frames 3
+
+# CPU・バスのフェーズ2単体スモークテスト。
+stdlib_paths=$(hare version -v | awk '
+	/^HAREPATH:/ { infield=1; next }
+	infield && /^\t/ { sub(/^\t/, ""); print; next }
+	infield { exit }
+')
+harepath="$root_dir/src"
+for p in $stdlib_paths; do
+	harepath="$harepath:$p"
+done
+HAREPATH="$harepath" hare build -q -o "$root_dir/build/core-test" "$root_dir/tests"
+"$root_dir/build/core-test"
