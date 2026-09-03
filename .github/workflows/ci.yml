@@ -4,14 +4,46 @@ on:
   push:
   pull_request:
 
+env:
+  QBE_REPO: https://github.com/omenos/mirror-qbe.git
+  HAREC_REPO: https://git.sr.ht/~sircmpwn/harec
+  HARE_REPO: https://git.sr.ht/~sircmpwn/hare
+  HARE_PREFIX: /usr/local
+
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install Hare
+
+      - name: Install build dependencies
         run: |
-          curl --fail --silent --show-error --location https://harelang.org/install.sh | bash
+          sudo apt-get update
+          sudo apt-get install -y build-essential scdoc
+
+      # Hare には公式のバイナリ配布や apt パッケージが無いため、
+      # QBE (バックエンド) → harec (コンパイラフロントエンド) → hare
+      # (標準ライブラリ・ドライバ) の順にソースからブートストラップする。
+      # 手順は harec の .builds/alpine.yml に準拠する。
+      - name: Build and install QBE
+        run: |
+          git clone --depth 1 "$QBE_REPO" /tmp/qbe
+          make -C /tmp/qbe -j"$(nproc)"
+          sudo make -C /tmp/qbe install PREFIX="$HARE_PREFIX"
+
+      - name: Build and install harec
+        run: |
+          git clone --depth 1 "$HAREC_REPO" /tmp/harec
+          cp /tmp/harec/configs/linux.mk /tmp/harec/config.mk
+          make -C /tmp/harec -j"$(nproc)"
+          sudo make -C /tmp/harec install PREFIX="$HARE_PREFIX"
+
+      - name: Build and install hare
+        run: |
+          git clone --depth 1 "$HARE_REPO" /tmp/hare
+          cp /tmp/hare/configs/linux.mk /tmp/hare/config.mk
+          make -C /tmp/hare -j"$(nproc)"
+          sudo make -C /tmp/hare install PREFIX="$HARE_PREFIX"
+
       - name: Build and smoke test
-        run: |
-          PATH="$HOME/.local/bin:$PATH" ./scripts/test.sh
+        run: ./scripts/test.sh
