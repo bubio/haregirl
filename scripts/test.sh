@@ -11,3 +11,8 @@ if "$root_dir/build/haregirl" --unknown >/dev/null 2>&1; then
 	echo "unknown option was accepted" >&2
 	exit 1
 fi
+
+# SDL_VIDEODRIVER=dummy でヘッドレス環境(CI)でも --test-screen の一連の処理
+# (SDL2 初期化・ウィンドウ/レンダラー/テクスチャ生成・描画・破棄)が
+# エラーなく完走することを確認する。--frames で自動終了させる。
+SDL_VIDEODRIVER=dummy "$root_dir/build/haregirl" --test-screen --frames 3

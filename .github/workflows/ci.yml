@@ -19,7 +19,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential scdoc
+          sudo apt-get install -y build-essential scdoc libsdl2-dev
 
       # Hare には公式のバイナリ配布や apt パッケージが無いため、
       # QBE (バックエンド) → harec (コンパイラフロントエンド) → hare
