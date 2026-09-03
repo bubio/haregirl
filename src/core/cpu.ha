@@ -113,6 +113,14 @@ fn cb(c: *Cpu, b: *Bus, op: u8) void = {
 export fn cpu_step(c: *Cpu, b: *Bus) int = {
 	const start=b.cycles;
 	if (c.ime_delay>0) { c.ime_delay-=1; if(c.ime_delay==0)c.ime=true; };
+	const pending = interrupt_pending(b);
+	if (pending != 0) {
+		if (c.halted) c.halted = false;
+		if (c.ime) {
+			cpu_dispatch_interrupt(c, b);
+			return ((b.cycles-start): int);
+		};
+	};
 	if (c.halted) { bus_tick(b,4); return ((b.cycles-start): int); };
 	let op=bus_cpu_read8(b,c.pc); if(!c.halt_bug)c.pc+=1 else c.halt_bug=false;
 	if(op==0xCB) { cb(c,b,next8(c,b)); return ((b.cycles-start): int); };

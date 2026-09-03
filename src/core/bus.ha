@@ -11,6 +11,13 @@ export type Bus = struct {
 	io: [128]u8,
 	ie: u8,
 	cycles: u64,
+	div_counter: u16,
+	tima: u8,
+	tma: u8,
+	tac: u8,
+	timer_reload_pending: int,
+	timer_reload_just_happened: bool,
+	serial_log: []u8,
 };
 
 export fn bus_load_rom(bus: *Bus, data: []u8) bool = {
@@ -19,7 +26,10 @@ export fn bus_load_rom(bus: *Bus, data: []u8) bool = {
 };
 
 export fn bus_tick(bus: *Bus, cycles: int) void = {
-	if (cycles > 0) bus.cycles += cycles: u64;
+	if (cycles > 0) {
+		bus.cycles += cycles: u64;
+		timer_tick(bus, cycles);
+	};
 };
 
 export fn bus_read(bus: *Bus, addr: u16) u8 = {
@@ -42,8 +52,12 @@ export fn bus_read(bus: *Bus, addr: u16) u8 = {
 		return 0xFF;
 	} else if (addr < 0xFF80) {
 		switch (addr) {
-		case 0xFF04 => return (bus.cycles >> 8): u8;
+		case 0xFF04 => return (bus.div_counter >> 8): u8;
+		case 0xFF05 => return bus.tima;
+		case 0xFF06 => return bus.tma;
+		case 0xFF07 => return bus.tac | 0xF8;
 		case 0xFF0F => return bus.io[0x0F] | 0xE0;
+		case 0xFF01, 0xFF02 => return bus.io[a - 0xFF00];
 		case 0xFF50 => return bus.io[0x50];
 		case => return 0xFF;
 		};
@@ -74,9 +88,17 @@ export fn bus_write(bus: *Bus, addr: u16, value: u8) void = {
 	} else if (addr < 0xFF80) {
 		switch (addr) {
 		case 0xFF04 =>
-			bus.cycles = 0;
+			timer_write_div(bus);
+		case 0xFF05 =>
+			timer_write_tima(bus, value);
+		case 0xFF06 =>
+			timer_write_tma(bus, value);
+		case 0xFF07 =>
+			timer_write_tac(bus, value);
 		case 0xFF0F =>
 			bus.io[0x0F] = value & 0x1F;
+		case 0xFF01, 0xFF02 =>
+			serial_write(bus, addr, value);
 		case =>
 			bus.io[a - 0xFF00] = value;
 		};
