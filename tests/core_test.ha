@@ -24,6 +24,8 @@ fn test_bus() void = {
 	check(core::bus_read(&b, 0xE123) == 0x5A, "echo read");
 	core::bus_write(&b, 0xE124, 0xA5);
 	check(core::bus_read(&b, 0xC124) == 0xA5, "echo write");
+	core::bus_write(&b, 0xFF40, 0x91);
+	check(core::bus_read(&b, 0xFF40) == 0x91, "LCDC latch readback");
 	core::bus_tick(&b, 8);
 	check(b.cycles == 8, "bus tick");
 };
@@ -117,6 +119,8 @@ export fn main() void = {
 	test_timer();
 	test_interrupts();
 	test_serial();
+	test_rom_runner();
+	test_mooneye_roms();
 	fmt::println("core tests passed")!;
 	os::exit(0);
 };

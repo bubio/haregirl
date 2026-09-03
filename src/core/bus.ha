@@ -52,6 +52,7 @@ export fn bus_read(bus: *Bus, addr: u16) u8 = {
 		return 0xFF;
 	} else if (addr < 0xFF80) {
 		switch (addr) {
+		case 0xFF40 => return bus.io[0x40];
 		case 0xFF04 => return (bus.div_counter >> 8): u8;
 		case 0xFF05 => return bus.tima;
 		case 0xFF06 => return bus.tma;
