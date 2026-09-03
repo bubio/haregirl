@@ -20,4 +20,7 @@ for p in $stdlib_paths; do
 	harepath="$harepath:$p"
 done
 
-HAREPATH="$harepath" hare build -o "$output_dir/haregirl" -l SDL2 "$root_dir/src/app"
+# aarch64 環境 (Ubuntu の gcc は --enable-default-pie) では、Hare の rt が
+# 参照する glibc の environ シンボルへのアクセスが PIC 非対応のコード生成に
+# なっており、PIE としてリンクすると失敗する。-no-pie でリンクすることで回避する。
+HAREPATH="$harepath" LDFLAGS="-no-pie" hare build -o "$output_dir/haregirl" -l SDL2 "$root_dir/src/app"

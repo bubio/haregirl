@@ -28,5 +28,6 @@ harepath="$root_dir/src"
 for p in $stdlib_paths; do
 	harepath="$harepath:$p"
 done
-HAREPATH="$harepath" hare build -q -o "$root_dir/build/core-test" "$root_dir/tests"
+# build.sh 同様、aarch64 環境での PIE リンクエラーを回避する。
+HAREPATH="$harepath" LDFLAGS="-no-pie" hare build -q -o "$root_dir/build/core-test" "$root_dir/tests"
 "$root_dir/build/core-test"
