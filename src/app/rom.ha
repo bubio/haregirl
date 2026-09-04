@@ -109,10 +109,23 @@ fn frame_to_argb(bus: *core::Bus, fb: []u32) void = {
 	};
 };
 
+// apply_volume は core::apu_take_samples が返した PCM サンプル列に、
+// 設定の音量(0-100)を適用する。volume はキャリブレーション不要な単純な
+// 線形スケールとして扱う(APU側の振幅は既にi16の範囲に収まっているため、
+// ここでの乗算がオーバーフローすることはない)。
+fn apply_volume(samples: []i16, volume: int) void = {
+	if (volume >= 100) return;
+	let v = volume;
+	if (v < 0) v = 0;
+	for (let i = 0z; i < len(samples); i += 1) {
+		samples[i] = (((samples[i]: int) * v) / 100): i16;
+	};
+};
+
 // run_rom は rom_path のROMを実行し続ける。ウィンドウを閉じるか Escape キーで
 // 終了する。frames > 0 の場合はその数のフレーム描画後に自動終了する
 // (ヘッドレスCIでのスモークテスト用)。
-export fn run_rom(rom_path: str, scale: int, frames: int) void = {
+export fn run_rom(rom_path: str, scale: int, volume: int, frames: int) void = {
 	const file = match (os::open(rom_path)) {
 	case let f: io::file =>
 		yield f;
@@ -207,6 +220,7 @@ export fn run_rom(rom_path: str, scale: int, frames: int) void = {
 		const samples = core::apu_take_samples(&runner.bus);
 		defer free(samples);
 		if (len(samples) > 0) {
+			apply_volume(samples, volume);
 			sdl::queue_audio(dev, samples: *[*]i16: *opaque,
 				(len(samples) * size(i16)): u32);
 		};

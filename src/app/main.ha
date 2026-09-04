@@ -230,7 +230,7 @@ export fn main() void = {
 
 	match (rom_path) {
 	case let p: str =>
-		run_rom(p, settings.scale, frames);
+		run_rom(p, settings.scale, settings.volume, frames);
 		return;
 	case void => void;
 	};
