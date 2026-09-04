@@ -314,10 +314,15 @@ fn apu_mix_sample(bus: *Bus) (i16, i16) = {
 
 	const left_vol = ((a.nr50 >> 4) & 0x07): i32;
 	const right_vol = (a.nr50 & 0x07): i32;
-	// Scale four -15..15 channels through a 0..7 master volume into the
-	// i16 range with headroom to avoid clipping on worst-case mixes.
-	left = left * (left_vol + 1) * 128;
-	right = right * (right_vol + 1) * 128;
+	// Scale four -15..15 (ch3 is a narrower -8..7) channels through a 0..7
+	// master volume into the i16 range. Worst case |left|/|right| before
+	// scaling is about 4*15=60, so at the max master volume multiplier of
+	// 8 that's up to 480; a per-step scale of 128 (480*128=61440) overflows
+	// i16 (max 32767) and wraps around, which is heard as harsh
+	// clipping/distortion at loud mixes. 64 keeps the peak (480*64=30720)
+	// safely inside i16 range while still using nearly all of it.
+	left = left * (left_vol + 1) * 64;
+	right = right * (right_vol + 1) * 64;
 	return (left: i16, right: i16);
 };
 
