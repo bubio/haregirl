@@ -135,6 +135,7 @@ export fn rom_runner_init(runner: *Rom_Runner, rom: []u8, mode: Gb_Mode) bool = 
 	runner.breakpoints = 0;
 	const ok = bus_load_rom(&runner.bus, rom);
 	cpu_reset(&runner.cpu, mode);
+	ppu_reset(&runner.bus.ppu);
 	return ok;
 };
 

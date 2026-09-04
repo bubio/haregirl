@@ -18,6 +18,7 @@ export type Bus = struct {
 	timer_reload_pending: int,
 	timer_reload_just_happened: bool,
 	serial_log: []u8,
+	ppu: Ppu,
 };
 
 export fn bus_load_rom(bus: *Bus, data: []u8) bool = {
@@ -29,6 +30,7 @@ export fn bus_tick(bus: *Bus, cycles: int) void = {
 	if (cycles > 0) {
 		bus.cycles += cycles: u64;
 		timer_tick(bus, cycles);
+		ppu_tick(bus, cycles);
 	};
 };
 
@@ -52,7 +54,18 @@ export fn bus_read(bus: *Bus, addr: u16) u8 = {
 		return 0xFF;
 	} else if (addr < 0xFF80) {
 		switch (addr) {
-		case 0xFF40 => return bus.io[0x40];
+		case 0xFF40 => return bus.ppu.lcdc;
+		case 0xFF41 => return bus.ppu.stat | 0x80;
+		case 0xFF42 => return bus.ppu.scy;
+		case 0xFF43 => return bus.ppu.scx;
+		case 0xFF44 => return bus.ppu.ly;
+		case 0xFF45 => return bus.ppu.lyc;
+		case 0xFF46 => return bus.io[0x46];
+		case 0xFF47 => return bus.ppu.bgp;
+		case 0xFF48 => return bus.ppu.obp0;
+		case 0xFF49 => return bus.ppu.obp1;
+		case 0xFF4A => return bus.ppu.wy;
+		case 0xFF4B => return bus.ppu.wx;
 		case 0xFF04 => return (bus.div_counter >> 8): u8;
 		case 0xFF05 => return bus.tima;
 		case 0xFF06 => return bus.tma;
@@ -88,6 +101,30 @@ export fn bus_write(bus: *Bus, addr: u16, value: u8) void = {
 		bus.cycles += 0;
 	} else if (addr < 0xFF80) {
 		switch (addr) {
+		case 0xFF40 =>
+			ppu_write_lcdc(bus, value);
+		case 0xFF41 =>
+			ppu_write_stat(bus, value);
+		case 0xFF42 =>
+			bus.ppu.scy = value;
+		case 0xFF43 =>
+			bus.ppu.scx = value;
+		case 0xFF44 =>
+			ppu_write_ly(bus, value);
+		case 0xFF45 =>
+			ppu_write_lyc(bus, value);
+		case 0xFF46 =>
+			oam_dma_start(bus, value);
+		case 0xFF47 =>
+			bus.ppu.bgp = value;
+		case 0xFF48 =>
+			bus.ppu.obp0 = value;
+		case 0xFF49 =>
+			bus.ppu.obp1 = value;
+		case 0xFF4A =>
+			bus.ppu.wy = value;
+		case 0xFF4B =>
+			bus.ppu.wx = value;
 		case 0xFF04 =>
 			timer_write_div(bus);
 		case 0xFF05 =>

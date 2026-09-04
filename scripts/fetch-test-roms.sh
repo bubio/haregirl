@@ -57,6 +57,13 @@ fetch_blargg "cpu_instrs/individual/11-op a,(hl).gb" \
 fetch_blargg "instr_timing/instr_timing.gb" \
 	"$blargg_dir/instr_timing/instr_timing.gb"
 
+acid2_dir="$rom_dir/dmg-acid2"
+acid2_url="https://github.com/mattcurrie/dmg-acid2/releases/download/v1.0/dmg-acid2.gb"
+mkdir -p "$acid2_dir"
+if [ ! -f "$acid2_dir/dmg-acid2.gb" ]; then
+	curl -L --fail --silent --show-error -o "$acid2_dir/dmg-acid2.gb" "$acid2_url"
+fi
+
 if [ ! -f "$archive_path" ]; then
 	curl -L --fail --silent --show-error -o "$archive_path" "$archive_url"
 fi
@@ -92,3 +99,4 @@ PY
 
 printf 'Fetched Blargg ROMs into %s (commit %s)\n' "$blargg_dir" "$blargg_commit"
 printf 'Fetched Mooneye ROMs into %s\n' "$dest_dir"
+printf 'Fetched dmg-acid2 ROM into %s\n' "$acid2_dir"
