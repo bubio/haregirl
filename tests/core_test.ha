@@ -123,6 +123,8 @@ export fn main() void = {
 	test_blargg_runner();
 	test_blargg_roms();
 	test_mooneye_roms();
+	test_mbc_roms();
+	test_cart_ram_save_restore();
 	test_dmg_acid2();
 	fmt::println("core tests passed")!;
 	os::exit(0);

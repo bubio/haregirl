@@ -79,6 +79,9 @@ prefixes = (
     "acceptance/timer/",
     "acceptance/interrupts/",
     "acceptance/serial/",
+    "emulator-only/mbc1/",
+    "emulator-only/mbc2/",
+    "emulator-only/mbc5/",
 )
 
 with ZipFile(archive) as zf:

@@ -3,7 +3,7 @@
 export type Bus = struct {
 	mode: Gb_Mode,
 	rom: []u8,
-	ram: []u8,
+	cart: Cartridge,
 	vram: [8192]u8,
 	wram: [8192]u8,
 	oam: [160]u8,
@@ -23,6 +23,7 @@ export type Bus = struct {
 
 export fn bus_load_rom(bus: *Bus, data: []u8) bool = {
 	bus.rom = data;
+	cartridge_init(bus);
 	return len(data) != 0;
 };
 
@@ -37,13 +38,11 @@ export fn bus_tick(bus: *Bus, cycles: int) void = {
 export fn bus_read(bus: *Bus, addr: u16) u8 = {
 	const a = (addr: size);
 	if (addr < 0x8000) {
-		if (a < len(bus.rom)) return bus.rom[a];
-		return 0xFF;
+		return cart_read(bus, addr);
 	} else if (addr < 0xA000) {
 		return bus.vram[a - 0x8000];
 	} else if (addr < 0xC000) {
-		if (a - 0xA000 < len(bus.ram)) return bus.ram[a - 0xA000];
-		return 0xFF;
+		return cart_ram_read(bus, addr);
 	} else if (addr < 0xE000) {
 		return bus.wram[a - 0xC000];
 	} else if (addr < 0xFE00) {
@@ -85,12 +84,11 @@ export fn bus_read(bus: *Bus, addr: u16) u8 = {
 export fn bus_write(bus: *Bus, addr: u16, value: u8) void = {
 	const a = (addr: size);
 	if (addr < 0x8000) {
-		// ROM-only cartridges ignore writes.
-		bus.cycles += 0;
+		cart_write(bus, addr, value);
 	} else if (addr < 0xA000) {
 		bus.vram[a - 0x8000] = value;
 	} else if (addr < 0xC000) {
-		if (a - 0xA000 < len(bus.ram)) bus.ram[a - 0xA000] = value;
+		cart_ram_write(bus, addr, value);
 	} else if (addr < 0xE000) {
 		bus.wram[a - 0xC000] = value;
 	} else if (addr < 0xFE00) {
