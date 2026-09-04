@@ -62,12 +62,13 @@ fn alu(c: *Cpu, op: u8, v: u8) void = {
 	const carry: u8 = if (cpu_flag_c(c)) 1 else 0;
 	switch (op) {
 	case 0, 1 =>
-		const x = (c.a: int) + (v: int) + (if (op == 1) (carry: int) else 0);
-		const ci = if (op == 1) carry else 0;
+		const ci: u8 = if (op == 1) carry else 0u8;
+		const x = (c.a: int) + (v: int) + (ci: int);
 		const h = (c.a & 15) + (v & 15) + (ci: u8) > 15;
 		c.a=(x: u8); cpu_set_flags(c,c.a==0,false,h,x>255);
 	case 2, 3 =>
-		const ci = if (op == 3) carry else 0; const x=(c.a: int)-(v: int)-(ci: int);
+		const ci: u8 = if (op == 3) carry else 0u8;
+		const x=(c.a: int)-(v: int)-(ci: int);
 		const h = ((c.a & 15): int)-((v & 15): int)-(ci: int)<0;
 		c.a=(x: u8); cpu_set_flags(c,c.a==0,true,h,x<0);
 	case 4 => c.a &= v; cpu_set_flags(c,c.a==0,false,true,false);
