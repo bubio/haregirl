@@ -133,7 +133,7 @@ export fn main() void = {
 			case let n: int =>
 				yield n;
 			case =>
-				fmt::fatal("invalid --frames value: {}", args[i]);
+				fmt::fatalf("invalid --frames value: {}", args[i]);
 			};
 		case "--config" =>
 			i += 1;
@@ -150,7 +150,7 @@ export fn main() void = {
 			case let n: int =>
 				yield n;
 			case =>
-				fmt::fatal("invalid --scale value: {}", args[i]);
+				fmt::fatalf("invalid --scale value: {}", args[i]);
 			};
 		case "--volume" =>
 			i += 1;
@@ -161,14 +161,14 @@ export fn main() void = {
 			case let n: int =>
 				yield n;
 			case =>
-				fmt::fatal("invalid --volume value: {}", args[i]);
+				fmt::fatalf("invalid --volume value: {}", args[i]);
 			};
 		case "--save-config" =>
 			save_config = true;
 		case "--print-config" =>
 			print_config = true;
 		case =>
-			fmt::fatal("unknown option: {}", args[i]);
+			fmt::fatalf("unknown option: {}", args[i]);
 		};
 	};
 
@@ -201,7 +201,7 @@ export fn main() void = {
 		case void =>
 			fmt::println("設定を保存しました:", path)!;
 		case let err: fs::error =>
-			fmt::fatal("設定の保存に失敗しました: {}", fs::strerror(err));
+			fmt::fatalf("設定の保存に失敗しました: {}", fs::strerror(err));
 		};
 		return;
 	};
