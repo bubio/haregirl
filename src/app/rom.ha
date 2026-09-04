@@ -179,6 +179,16 @@ export fn run_rom(rom_path: str, scale: int, frames: int) void = {
 	let fb: []u32 = alloc([0...], (SCREEN_WIDTH * SCREEN_HEIGHT): size)!;
 	defer free(fb);
 
+	// audio_high_watermark はオーディオデバイスの再生キューに許容する最大
+	// バイト数(約4フレーム分)。1フレーム分の音声を積んだ後、キューが
+	// これを超えている間だけ待つことで、実際のオーディオ再生クロック(実時間)
+	// にエミュレーション速度を同期させる。固定 sdl::delay(16) は
+	// エミュレーション/描画にかかる時間を考慮しないため、1フレームの実処理が
+	// 16ms をわずかでも超えるとオーディオキューが実時間の消費より供給不足になり
+	// (アンダーラン)、「ぶつぶつ途切れる」再生になっていた。
+	const bytes_per_frame = (core::SAMPLE_RATE / 60) * 2 * (size(i16): u32);
+	const audio_high_watermark = bytes_per_frame * 4;
+
 	let input: Input_State = Input_State { ... };
 	let rendered = 0;
 	for (true) {
@@ -201,12 +211,14 @@ export fn run_rom(rom_path: str, scale: int, frames: int) void = {
 				(len(samples) * size(i16)): u32);
 		};
 
-		// run_test_screen/run_test_audio (フェーズ1/6) 同様、実時間の
-		// フレーム間隔(約16ms/60fps)に合わせて進行を待つ。これが無いと
-		// CPUが許す限りの速度でエミュレーションが進んでしまう(実機の
-		// 何倍もの速さでゲームが進行し、音声もキューに溜まり続けて
-		// 実時間再生と噛み合わなくなる)。
-		sdl::delay(16);
+		// 固定delayではなく、実際のオーディオ再生キューの残量で進行を
+		// スロットリングする。これによりエミュレーション速度は
+		// オーディオデバイスの再生クロック(実時間そのもの)に同期し、
+		// CPUが許す限りの速度で進み過ぎることも、処理落ちでキューが
+		// 枯渇して音が途切れることも防げる。
+		for (sdl::get_queued_audio_size(dev) > audio_high_watermark) {
+			sdl::delay(1);
+		};
 
 		rendered += 1;
 		if (frames > 0 && rendered >= frames) break;
