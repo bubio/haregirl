@@ -20,6 +20,13 @@ use strings;
 // これらのレジスタ自体を書き換えないため、ブートROMを実行しないHareGirlでは
 // 明示的に投入しないと常時無音になる(NR52を最初に書いて電源を入れないと、
 // 他のレジスタへの書き込みは無視される点に注意)。
+// NRx4(0xFF14/0xFF19/0xFF1E/0xFF23)の bit7 は書き込み専用のトリガービットで、
+// 読み出すと常に1を返す。Pan Docs記載のブートROM後の値(NR14=0xBFなど)は
+// あくまでその「読み出し値」であり、実機ではブートROMのジングル演奏時に
+// 既にトリガー済み・エンベロープ減衰済みの状態でゲームに処理が渡る。
+// この値をそのまま書き込むとbit7=1により今この瞬間に再トリガーしてしまい、
+// 起動直後に本来鳴らないはずのフルボリュームの音が鳴ってしまうため、
+// トリガービットは落として書き込む。
 // テストROM実行に使われる core::rom_runner_init 自体は変更しない
 // (テストROMは自前で全レジスタを設定するため不要かつ、既存の合格テストへの
 // 回帰リスクを避けるため)。
@@ -28,18 +35,18 @@ fn apply_apu_power_up(bus: *core::Bus) void = {
 	core::bus_write(bus, 0xFF10, 0x80); // NR10
 	core::bus_write(bus, 0xFF11, 0xBF); // NR11
 	core::bus_write(bus, 0xFF12, 0xF3); // NR12
-	core::bus_write(bus, 0xFF14, 0xBF); // NR14
+	core::bus_write(bus, 0xFF14, 0xBF & 0x7F); // NR14(trigger bitは落とす)
 	core::bus_write(bus, 0xFF16, 0x3F); // NR21
 	core::bus_write(bus, 0xFF17, 0x00); // NR22
-	core::bus_write(bus, 0xFF19, 0xBF); // NR24
+	core::bus_write(bus, 0xFF19, 0xBF & 0x7F); // NR24(trigger bitは落とす)
 	core::bus_write(bus, 0xFF1A, 0x7F); // NR30
 	core::bus_write(bus, 0xFF1B, 0xFF); // NR31
 	core::bus_write(bus, 0xFF1C, 0x9F); // NR32
-	core::bus_write(bus, 0xFF1E, 0xBF); // NR34
+	core::bus_write(bus, 0xFF1E, 0xBF & 0x7F); // NR34(trigger bitは落とす)
 	core::bus_write(bus, 0xFF20, 0xFF); // NR41
 	core::bus_write(bus, 0xFF21, 0x00); // NR42
 	core::bus_write(bus, 0xFF22, 0x00); // NR43
-	core::bus_write(bus, 0xFF23, 0xBF); // NR44
+	core::bus_write(bus, 0xFF23, 0xBF & 0x7F); // NR44(trigger bitは落とす)
 	core::bus_write(bus, 0xFF24, 0x77); // NR50: マスター音量(左右ともフル)
 	core::bus_write(bus, 0xFF25, 0xF3); // NR51: 左右チャンネル振り分け
 };
@@ -205,7 +212,16 @@ export fn run_rom(rom_path: str, scale: int, volume: int, frames: int) void = {
 	let input: Input_State = Input_State { ... };
 	let rendered = 0;
 	for (true) {
-		if (input_poll(&runner.bus, &input)) break;
+		if (input_poll(&runner.bus, &input)) {
+			// ウィンドウの閉じるボタンで終了する場合、WM がウィンドウの
+			// 破棄を先に始めて video_present 等が一時的にブロックすることが
+			// あり、その間に音声キューが枯渇してノイズが出ることがある
+			// (ESCキー終了ではウィンドウ破棄を伴わないため発生しない)。
+			// 終了検知直後に即座にデバイスを止めて無音化することで、
+			// 後始末の間に鳴り残った音がノイズとして聞こえるのを防ぐ。
+			sdl::pause_audio_device(dev, 1);
+			break;
+		};
 
 		const frame_cycles = if (runner.bus.double_speed)
 			core::CYCLES_PER_FRAME * 2 else core::CYCLES_PER_FRAME;
