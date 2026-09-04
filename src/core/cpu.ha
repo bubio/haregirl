@@ -5,6 +5,10 @@ export type Cpu = struct {
 	a: u8, f: u8, b: u8, c: u8, d: u8, e: u8, h: u8, l: u8,
 	sp: u16, pc: u16, ime: bool, halted: bool, stopped: bool,
 	ime_delay: int, halt_bug: bool, illegal_opcode: bool,
+	// last_op はフェッチした最後のオペコード。rom_runner_step が
+	// ブレークポイント検出用にオペコードをバス経由で再取得する
+	// (毎命令ごとにROMを二重に読む)無駄を避けるためのキャッシュ。
+	last_op: u8,
 };
 // Upper-case spelling is retained for callers that model the hardware name.
 export type CPU = Cpu;
@@ -124,6 +128,7 @@ export fn cpu_step(c: *Cpu, b: *Bus) int = {
 	};
 	if (c.halted) { bus_tick(b,4); return ((b.cycles-start): int); };
 	let op=bus_cpu_read8(b,c.pc); if(!c.halt_bug)c.pc+=1 else c.halt_bug=false;
+	c.last_op=op;
 	if(op==0xCB) { cb(c,b,next8(c,b)); return ((b.cycles-start): int); };
 	// Regular register transfers and ALU operations.
 	if (op>=0x40 && op<=0x7F) {

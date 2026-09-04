@@ -312,22 +312,40 @@ fn ppu_render_sprites(
 	};
 };
 
+// ppu_tick は以前1dotずつループしてppu_update_stat_line(STATの edge
+// detection)を毎dot呼んでいたが、モード/LYCが実際に変化するのはOAM/転送/
+// 行送りの境界dotだけなので、境界のないdot区間は一気にスキップできる
+// (STAT/LYC/LCDCレジスタへの書き込みによる境界外での変化はppu_write_stat/
+// ppu_write_lyc/ppu_write_lcdc側で個別にppu_update_stat_lineを呼んで
+// 拾うため、ここで毎dot呼ぶ必要はない)。
 export fn ppu_tick(bus: *Bus, cycles: int) void = {
 	const p = &bus.ppu;
 	if (!ppu_lcd_enabled(p)) return;
 
-	let remaining = cycles;
+	let remaining: u16 = cycles: u16;
 	for (remaining > 0) {
-		p.dot += 1;
-		remaining -= 1;
+		let next_boundary = DOTS_PER_LINE;
+		if (p.ly < 144) {
+			if (p.dot < OAM_DOTS) {
+				next_boundary = OAM_DOTS;
+			} else if (p.dot < OAM_DOTS + TRANSFER_DOTS) {
+				next_boundary = OAM_DOTS + TRANSFER_DOTS;
+			};
+		};
+		const to_boundary = next_boundary - p.dot;
+		const step = if (to_boundary < remaining) to_boundary else remaining;
+		p.dot += step;
+		remaining -= step;
 
 		if (p.ly < 144) {
 			if (p.dot == OAM_DOTS) {
 				ppu_set_mode(bus, PPU_MODE_TRANSFER);
+				ppu_update_stat_line(bus);
 			} else if (p.dot == OAM_DOTS + TRANSFER_DOTS) {
 				ppu_render_line(bus);
 				ppu_set_mode(bus, PPU_MODE_HBLANK);
 				hdma_hblank_step(bus);
+				ppu_update_stat_line(bus);
 			};
 		};
 
@@ -345,8 +363,8 @@ export fn ppu_tick(bus: *Bus, cycles: int) void = {
 				ppu_set_mode(bus, PPU_MODE_OAM);
 			};
 			ppu_update_lyc(bus);
+			ppu_update_stat_line(bus);
 		};
-		ppu_update_stat_line(bus);
 	};
 };
 
@@ -359,11 +377,17 @@ export fn ppu_write_lcdc(bus: *Bus, value: u8) void = {
 		bus.ppu.window_line = 0;
 		ppu_set_mode(bus, PPU_MODE_HBLANK);
 		bus.ppu.stat_line = false;
+	} else if (!was_enabled && ppu_lcd_enabled(&bus.ppu)) {
+		ppu_update_stat_line(bus);
 	};
 };
 
+// ppu_tick はモード/LYCの境界dotでしかppu_update_stat_lineを呼ばないため、
+// 走査線の途中でSTAT割り込み源を有効にした場合はここで即座に拾う必要がある
+// (境界まで待つと実機よりSTAT割り込みが遅れてしまう)。
 export fn ppu_write_stat(bus: *Bus, value: u8) void = {
 	bus.ppu.stat = (bus.ppu.stat & 0x87) | (value & 0x78);
+	ppu_update_stat_line(bus);
 };
 
 export fn ppu_write_ly(bus: *Bus, value: u8) void = {
@@ -373,6 +397,7 @@ export fn ppu_write_ly(bus: *Bus, value: u8) void = {
 export fn ppu_write_lyc(bus: *Bus, value: u8) void = {
 	bus.ppu.lyc = value;
 	ppu_update_lyc(bus);
+	ppu_update_stat_line(bus);
 };
 
 export fn oam_dma_start(bus: *Bus, value: u8) void = {

@@ -107,9 +107,12 @@ export fn cart_ram_load(bus: *Bus, data: []u8) void = {
 	for (let i = 0z; i < n; i += 1) bus.cart.ram[i] = data[i];
 };
 
+// cart_rom_bank_count は常に2の冪(2<<code、あるいはフォールバックの1)を
+// 返すため、剰余の代わりにビットマスクで折り返せる。剰余演算はROMの
+// 全バイトアクセス(オペコードフェッチ含む、毎命令複数回発生する)の
+// たびに実行されるホットパスなので、これは実測で無視できない差になる。
 fn cart_rom_byte(bus: *Bus, bank: int, off: u16) u8 = {
-	let b = bank;
-	if (bus.cart.rom_bank_count > 0) b %= bus.cart.rom_bank_count;
+	const b = bank & (bus.cart.rom_bank_count - 1);
 	const idx = (b: size) * 0x4000 + (off: size);
 	if (idx < len(bus.rom)) return bus.rom[idx];
 	return 0xFF;
@@ -202,12 +205,9 @@ export fn cart_write(bus: *Bus, addr: u16, value: u8) void = {
 fn cart_ram_bank_index(bus: *Bus, bank: int, addr: u16) (size | void) = {
 	const c = &bus.cart;
 	if (len(c.ram) == 0) return void;
-	let b = bank;
-	if (c.ram_bank_count > 0) {
-		b %= c.ram_bank_count;
-	} else {
-		b = 0;
-	};
+	// cart_ram_size (呼び出し元 cartridge_init 経由) は常に2の冪バンク数に
+	// なるため、剰余の代わりにビットマスクで折り返せる。
+	const b = if (c.ram_bank_count > 0) bank & (c.ram_bank_count - 1) else 0;
 	const idx = (b: size) * 0x2000 + ((addr & 0x1FFF): size);
 	if (idx >= len(c.ram)) return void;
 	return idx;

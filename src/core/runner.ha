@@ -142,8 +142,14 @@ export fn rom_runner_init(runner: *Rom_Runner, rom: []u8, mode: Gb_Mode) bool = 
 
 export fn rom_runner_step(runner: *Rom_Runner) int = {
 	runner.last_pc = runner.cpu.pc;
-	runner.last_opcode = bus_read(&runner.bus, runner.cpu.pc);
 	const cycles = cpu_step(&runner.cpu, &runner.bus);
+	// last_op はフェッチ時にキャッシュされた値(cpu.ha参照)。以前はここで
+	// bus_read によりオペコードを二重にフェッチしていたが、CPUステップ毎に
+	// ROM(バンク切替のため剰余演算を伴う)を余計に1回読む無駄だったため削除。
+	// HALT/割り込み分岐でフェッチが起きなかった回はキャッシュが更新されない
+	// (前回フェッチ値のまま)だが、その場合 pc は last_pc から変化しないため
+	// 下のブレークポイント判定(pc == last_pc + 1)には影響しない。
+	runner.last_opcode = runner.cpu.last_op;
 	runner.steps += 1;
 	if (runner.last_opcode == 0x40 && runner.cpu.pc == runner.last_pc + 1) {
 		runner.breakpoints += 1;
