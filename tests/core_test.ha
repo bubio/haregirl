@@ -111,6 +111,52 @@ fn test_serial() void = {
 	check((core::bus_read(&b, 0xFF0F) & core::INT_SERIAL) != 0, "serial interrupt requested");
 };
 
+fn test_cgb_extensions() void = {
+	let b: core::Bus = core::Bus { mode = core::Gb_Mode::Cgb, ... };
+
+	// VRAM banking (FF4F/VBK): bank 0 and bank 1 are independent stores.
+	core::bus_write(&b, 0xFF4F, 0x00);
+	core::bus_write(&b, 0x8000, 0x11);
+	core::bus_write(&b, 0xFF4F, 0x01);
+	core::bus_write(&b, 0x8000, 0x22);
+	check(core::bus_read(&b, 0x8000) == 0x22, "VRAM bank 1 write/read");
+	core::bus_write(&b, 0xFF4F, 0x00);
+	check(core::bus_read(&b, 0x8000) == 0x11, "VRAM bank 0 unaffected by bank 1 write");
+
+	// WRAM banking (FF70/SVBK): bank 0 fixed at C000-CFFF, switchable bank
+	// (1-7, 0 treated as 1) at D000-DFFF.
+	core::bus_write(&b, 0xFF70, 0x02);
+	core::bus_write(&b, 0xD000, 0xAA);
+	core::bus_write(&b, 0xFF70, 0x03);
+	core::bus_write(&b, 0xD000, 0xBB);
+	check(core::bus_read(&b, 0xD000) == 0xBB, "WRAM bank 3 write/read");
+	core::bus_write(&b, 0xFF70, 0x02);
+	check(core::bus_read(&b, 0xD000) == 0xAA, "WRAM bank 2 unaffected by bank 3 write");
+	check(core::bus_read(&b, 0xE000) == core::bus_read(&b, 0xC000), "echo mirrors bank 0");
+
+	// CGB BG palette RAM (FF68/69) with auto-increment.
+	core::bus_write(&b, 0xFF68, 0x80);
+	core::bus_write(&b, 0xFF69, 0xFF);
+	core::bus_write(&b, 0xFF69, 0x7F);
+	check((core::bus_read(&b, 0xFF68) & 0x3F) == 0x02, "BCPS auto-increment");
+	core::bus_write(&b, 0xFF68, 0x00);
+	check(core::bus_read(&b, 0xFF69) == 0xFF, "BCPD readback low byte");
+
+	// KEY1 (FF4D)/STOP: armed speed-switch flips double_speed and resumes
+	// execution instead of halting the CPU like a normal STOP.
+	let rom: [0x102]u8 = [0...];
+	rom[0x100] = 0x10;
+	rom[0x101] = 0x00;
+	core::bus_load_rom(&b, rom: []u8);
+	core::bus_write(&b, 0xFF4D, 0x01);
+	let c: core::Cpu = core::Cpu { ... };
+	core::cpu_reset(&c, core::Gb_Mode::Cgb);
+	core::cpu_step(&c, &b);
+	check(b.double_speed, "STOP with armed KEY1 enters double speed");
+	check(!c.stopped, "STOP with armed KEY1 does not halt the CPU");
+	check((core::bus_read(&b, 0xFF4D) & 0x01) == 0, "KEY1 armed bit cleared after switch");
+};
+
 export fn main() void = {
 	test_registers();
 	test_bus();
@@ -119,6 +165,7 @@ export fn main() void = {
 	test_timer();
 	test_interrupts();
 	test_serial();
+	test_cgb_extensions();
 	test_rom_runner();
 	test_blargg_runner();
 	test_blargg_roms();
@@ -127,6 +174,7 @@ export fn main() void = {
 	test_cart_ram_save_restore();
 	test_dmg_acid2();
 	test_apu_roms();
+	test_cgb_acid2();
 	fmt::println("core tests passed")!;
 	os::exit(0);
 };

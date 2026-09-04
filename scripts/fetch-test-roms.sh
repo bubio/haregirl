@@ -75,6 +75,13 @@ if [ ! -f "$acid2_dir/dmg-acid2.gb" ]; then
 	curl -L --fail --silent --show-error -o "$acid2_dir/dmg-acid2.gb" "$acid2_url"
 fi
 
+cgb_acid2_dir="$rom_dir/cgb-acid2"
+cgb_acid2_url="https://github.com/mattcurrie/cgb-acid2/releases/download/v1.1/cgb-acid2.gbc"
+mkdir -p "$cgb_acid2_dir"
+if [ ! -f "$cgb_acid2_dir/cgb-acid2.gbc" ]; then
+	curl -L --fail --silent --show-error -o "$cgb_acid2_dir/cgb-acid2.gbc" "$cgb_acid2_url"
+fi
+
 if [ ! -f "$archive_path" ]; then
 	curl -L --fail --silent --show-error -o "$archive_path" "$archive_url"
 fi
@@ -114,3 +121,4 @@ PY
 printf 'Fetched Blargg ROMs into %s (commit %s)\n' "$blargg_dir" "$blargg_commit"
 printf 'Fetched Mooneye ROMs into %s\n' "$dest_dir"
 printf 'Fetched dmg-acid2 ROM into %s\n' "$acid2_dir"
+printf 'Fetched cgb-acid2 ROM into %s\n' "$cgb_acid2_dir"

@@ -1,7 +1,11 @@
-// DMG picture processing unit. Implements register access, mode timing,
+// DMG/CGB picture processing unit. Implements register access, mode timing,
 // background/window/sprite rendering and STAT/VBlank interrupt requests.
-// CGB-specific behaviour (palette RAM, VRAM banking, priority overrides) is
-// out of scope until phase 7.
+// In CGB mode, BG map attributes (VRAM bank 1), OBJ CGB palettes/VRAM bank,
+// CGB BG/OBJ palette RAM (BCPS/BCPD, OCPS/OCPD) and the BG/OBJ master
+// priority bit are additionally modelled; the `frame` byte buffer keeps
+// holding DMG 0-3 shade ids (unchanged, still used by the dmg-acid2 test),
+// while `frame_rgb` holds packed 0xRRGGBB colors and is only populated in
+// CGB mode.
 
 export const PPU_MODE_HBLANK: u8 = 0;
 export const PPU_MODE_VBLANK: u8 = 1;
@@ -14,6 +18,7 @@ const TRANSFER_DOTS: u16 = 252;
 const LINES_PER_FRAME: u8 = 154;
 
 export type Ppu = struct {
+	mode_gb: Gb_Mode,
 	lcdc: u8,
 	stat: u8,
 	scy: u8,
@@ -30,6 +35,14 @@ export type Ppu = struct {
 	window_line: u8,
 	stat_line: bool,
 	frame: [23040]u8,
+	// CGB palette RAM (BCPS/BCPD FF68/69, OCPS/OCPD FF6A/6B): 8 palettes of
+	// 4 colors, 2 bytes (little-endian RGB555) per color.
+	cgb_bg_pal: [64]u8,
+	cgb_obj_pal: [64]u8,
+	bgpi: u8,
+	obpi: u8,
+	// Packed 0xRRGGBB colors, populated only in CGB mode.
+	frame_rgb: [23040]u32,
 };
 
 export fn ppu_lcd_enabled(p: *Ppu) bool = (p.lcdc & 0x80) != 0;
@@ -39,14 +52,42 @@ fn ppu_bg_unsigned_tiles(p: *Ppu) bool = (p.lcdc & 0x10) != 0;
 fn ppu_bg_tilemap_9c00(p: *Ppu) bool = (p.lcdc & 0x08) != 0;
 fn ppu_obj_tall(p: *Ppu) bool = (p.lcdc & 0x04) != 0;
 fn ppu_obj_enabled(p: *Ppu) bool = (p.lcdc & 0x02) != 0;
-fn ppu_bg_window_enabled(p: *Ppu) bool = (p.lcdc & 0x01) != 0;
+// On DMG, LCDC bit0 disables BG/window display entirely. On CGB it is
+// repurposed as the BG/OBJ master priority flag: BG/window keep rendering,
+// they merely lose the ability to be drawn above sprites.
+fn ppu_bg_window_enabled(p: *Ppu) bool = {
+	if (p.mode_gb == Gb_Mode::Cgb) return true;
+	return (p.lcdc & 0x01) != 0;
+};
+fn ppu_master_priority(p: *Ppu) bool = (p.lcdc & 0x01) != 0;
 
-export fn ppu_reset(p: *Ppu) void = {
+export fn ppu_reset(p: *Ppu, mode: Gb_Mode) void = {
 	*p = Ppu { ... };
+	p.mode_gb = mode;
 	p.lcdc = 0x91;
 	p.bgp = 0xFC;
 	p.obp0 = 0xFF;
 	p.obp1 = 0xFF;
+};
+
+fn ppu_rgb555_scale(v: u8) u8 = (((v: uint) * 255 + 15) / 31): u8;
+
+fn ppu_rgb555_unpack(lo: u8, hi: u8) u32 = {
+	const v: u16 = (lo: u16) | ((hi: u16) << 8);
+	const r = ppu_rgb555_scale((v & 0x1F): u8);
+	const g = ppu_rgb555_scale(((v >> 5) & 0x1F): u8);
+	const b = ppu_rgb555_scale(((v >> 10) & 0x1F): u8);
+	return ((r: u32) << 16) | ((g: u32) << 8) | (b: u32);
+};
+
+fn ppu_cgb_bg_color(p: *Ppu, palette: u8, id: u8) u32 = {
+	const base = ((palette & 0x07): size) * 8 + (id: size) * 2;
+	return ppu_rgb555_unpack(p.cgb_bg_pal[base], p.cgb_bg_pal[base + 1]);
+};
+
+fn ppu_cgb_obj_color(p: *Ppu, palette: u8, id: u8) u32 = {
+	const base = ((palette & 0x07): size) * 8 + (id: size) * 2;
+	return ppu_rgb555_unpack(p.cgb_obj_pal[base], p.cgb_obj_pal[base + 1]);
 };
 
 fn ppu_set_mode(bus: *Bus, mode: u8) void = {
@@ -79,13 +120,35 @@ fn ppu_update_lyc(bus: *Bus) void = {
 	};
 };
 
+// Fetches one background/window pixel's color id and CGB attribute byte
+// (0 outside CGB mode) from the tile at (map_addr, in_row/in_col).
+fn ppu_bg_pixel(bus: *Bus, map_addr: u16, in_row: u8, in_col: u8) (u8, u8) = {
+	const p = &bus.ppu;
+	const cgb = p.mode_gb == Gb_Mode::Cgb;
+	const tile_id = vram_at(bus, 0, map_addr);
+	const attr: u8 = if (cgb) vram_at(bus, 1, map_addr) else 0;
+	const bank: u8 = (attr >> 3) & 1;
+	const xflip = (attr & 0x20) != 0;
+	const yflip = (attr & 0x40) != 0;
+	const row = if (yflip) 7 - in_row else in_row;
+	const addr = ppu_tile_addr(p, tile_id, row: u16);
+	const lo = vram_at(bus, bank, addr);
+	const hi = vram_at(bus, bank, addr + 1);
+	const bit: u8 = if (xflip) in_col else 7 - in_col;
+	const id: u8 = (((hi >> bit) & 1) << 1) | ((lo >> bit) & 1);
+	return (id, attr);
+};
+
 // Renders one background/window/sprite scanline into the framebuffer using
 // the register values captured at the moment HBlank begins.
 fn ppu_render_line(bus: *Bus) void = {
 	const p = &bus.ppu;
+	const cgb = p.mode_gb == Gb_Mode::Cgb;
 	const ly = p.ly;
 	let row: [160]u8 = [0...];
+	let row_rgb: [160]u32 = [0...];
 	let bg_color_id: [160]u8 = [0...];
+	let bg_priority: [160]bool = [false...];
 
 	if (ppu_bg_window_enabled(p)) {
 		const y = ly + p.scy;
@@ -97,14 +160,14 @@ fn ppu_render_line(bus: *Bus) void = {
 			const tile_col = (sx / 8): u16;
 			const in_col = sx % 8;
 			const map_addr = map_base + tile_row * 32 + tile_col;
-			const tile_id = bus_read(bus, map_addr);
-			const addr = ppu_tile_addr(p, tile_id, in_row);
-			const lo = bus_read(bus, addr);
-			const hi = bus_read(bus, addr + 1);
-			const bit = 7 - in_col;
-			const id: u8 = (((hi >> bit) & 1) << 1) | ((lo >> bit) & 1);
-			bg_color_id[x] = id;
-			row[x] = ppu_apply_palette(p.bgp, id);
+			const px = ppu_bg_pixel(bus, map_addr, in_row, in_col);
+			bg_color_id[x] = px.0;
+			if (cgb) {
+				bg_priority[x] = (px.1 & 0x80) != 0;
+				row_rgb[x] = ppu_cgb_bg_color(p, px.1 & 0x07, px.0);
+			} else {
+				row[x] = ppu_apply_palette(p.bgp, px.0);
+			};
 		};
 
 		if (ppu_window_enabled(p) && ly >= p.wy) {
@@ -121,14 +184,14 @@ fn ppu_render_line(bus: *Bus) void = {
 					const tile_col = (wxpos: u16) / 8;
 					const in_col = (wxpos: u8) % 8;
 					const map_addr = win_map_base + tile_row * 32 + tile_col;
-					const tile_id = bus_read(bus, map_addr);
-					const addr = ppu_tile_addr(p, tile_id, in_row);
-					const lo = bus_read(bus, addr);
-					const hi = bus_read(bus, addr + 1);
-					const bit: u8 = 7 - in_col;
-					const id: u8 = (((hi >> bit) & 1) << 1) | ((lo >> bit) & 1);
-					bg_color_id[x] = id;
-					row[x] = ppu_apply_palette(p.bgp, id);
+					const px = ppu_bg_pixel(bus, map_addr, in_row, in_col);
+					bg_color_id[x] = px.0;
+					if (cgb) {
+						bg_priority[x] = (px.1 & 0x80) != 0;
+						row_rgb[x] = ppu_cgb_bg_color(p, px.1 & 0x07, px.0);
+					} else {
+						row[x] = ppu_apply_palette(p.bgp, px.0);
+					};
 				};
 				if (drew) p.window_line += 1;
 			};
@@ -136,11 +199,15 @@ fn ppu_render_line(bus: *Bus) void = {
 	};
 
 	if (ppu_obj_enabled(p)) {
-		ppu_render_sprites(bus, ly, &row, &bg_color_id);
+		ppu_render_sprites(bus, ly, &row, &row_rgb, &bg_color_id, &bg_priority);
 	};
 
 	for (let x = 0z; x < 160; x += 1) {
-		p.frame[(ly: size) * 160 + x] = row[x];
+		if (cgb) {
+			p.frame_rgb[(ly: size) * 160 + x] = row_rgb[x];
+		} else {
+			p.frame[(ly: size) * 160 + x] = row[x];
+		};
 	};
 };
 
@@ -169,9 +236,12 @@ fn ppu_render_sprites(
 	bus: *Bus,
 	ly: u8,
 	row: *[160]u8,
+	row_rgb: *[160]u32,
 	bg_color_id: *[160]u8,
+	bg_priority: *[160]bool,
 ) void = {
 	const p = &bus.ppu;
+	const cgb = p.mode_gb == Gb_Mode::Cgb;
 	const height: int = if (ppu_obj_tall(p)) 16 else 8;
 	let selected: [10]oam_entry = [oam_entry { ... }...];
 	let count = 0;
@@ -189,15 +259,19 @@ fn ppu_render_sprites(
 		count += 1;
 	};
 
-	// Lower OAM index draws on top when X coordinates tie; stable
-	// insertion sort by (x, index) keeps priority correct for DMG.
-	for (let i = 1; i < count; i += 1) {
-		const key = selected[i];
-		let j = i - 1;
-		for (j >= 0 && (selected[j].x: int) > (key.x: int); j -= 1) {
-			selected[j + 1] = selected[j];
+	// On DMG, lower OAM index draws on top when X coordinates tie, so a
+	// stable insertion sort by (x, index) establishes priority order. On
+	// CGB, sprite priority is purely OAM index order (already the order
+	// `selected` was built in), so the sort is skipped.
+	if (!cgb) {
+		for (let i = 1; i < count; i += 1) {
+			const key = selected[i];
+			let j = i - 1;
+			for (j >= 0 && (selected[j].x: int) > (key.x: int); j -= 1) {
+				selected[j + 1] = selected[j];
+			};
+			selected[j + 1] = key;
 		};
-		selected[j + 1] = key;
 	};
 
 	// Draw back-to-front so that the earlier (higher priority) sprite in
@@ -209,20 +283,31 @@ fn ppu_render_sprites(
 		if ((s.flags & 0x40) != 0) line = height - 1 - line;
 		let tile = s.tile;
 		if (height == 16) tile &= 0xFE;
+		const bank: u8 = if (cgb) (s.flags >> 3) & 1 else 0;
 		const addr = 0x8000 + (tile: u16) * 16 + (line: u16) * 2;
-		const lo = bus_read(bus, addr);
-		const hi = bus_read(bus, addr + 1);
+		const lo = vram_at(bus, bank, addr);
+		const hi = vram_at(bus, bank, addr + 1);
 		const x_flip = (s.flags & 0x20) != 0;
 		const behind_bg = (s.flags & 0x80) != 0;
 		const palette = if ((s.flags & 0x10) != 0) p.obp1 else p.obp0;
+		const cgb_palette = s.flags & 0x07;
 		for (let col = 0; col < 8; col += 1) {
 			const sx = (s.x: int) - 8 + col;
 			if (sx < 0 || sx >= 160) continue;
 			const bit: u8 = if (x_flip) (col: u8) else (7 - (col: u8));
 			const id: u8 = (((hi >> bit) & 1) << 1) | ((lo >> bit) & 1);
 			if (id == 0) continue;
-			if (behind_bg && bg_color_id[sx] != 0) continue;
-			row[sx] = ppu_apply_palette(palette, id);
+			if (cgb) {
+				if (ppu_master_priority(p)
+					&& (behind_bg || bg_priority[sx])
+					&& bg_color_id[sx] != 0) {
+					continue;
+				};
+				row_rgb[sx] = ppu_cgb_obj_color(p, cgb_palette, id);
+			} else {
+				if (behind_bg && bg_color_id[sx] != 0) continue;
+				row[sx] = ppu_apply_palette(palette, id);
+			};
 		};
 	};
 };
@@ -242,6 +327,7 @@ export fn ppu_tick(bus: *Bus, cycles: int) void = {
 			} else if (p.dot == OAM_DOTS + TRANSFER_DOTS) {
 				ppu_render_line(bus);
 				ppu_set_mode(bus, PPU_MODE_HBLANK);
+				hdma_hblank_step(bus);
 			};
 		};
 

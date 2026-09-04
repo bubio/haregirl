@@ -177,7 +177,15 @@ export fn cpu_step(c: *Cpu, b: *Bus) int = {
 	case 0xE2 => bus_cpu_write8(b,0xFF00+(c.c : u16),c.a); case 0xF2 => c.a=bus_cpu_read8(b,0xFF00+(c.c : u16));
 	case 0xEA => bus_cpu_write8(b,next16(c,b),c.a); case 0xFA => c.a=bus_cpu_read8(b,next16(c,b));
 	case 0xF3 => c.ime=false;c.ime_delay=0; case 0xFB => c.ime_delay=2;
-	case 0x76 => c.halted=true; case 0x10 => c.stopped=true;c.pc+=1;
+	case 0x76 => c.halted=true;
+	case 0x10 =>
+		c.pc+=1;
+		if ((b.key1 & 0x01) != 0) {
+			b.double_speed = !b.double_speed;
+			b.key1 &= 0xFE;
+		} else {
+			c.stopped=true;
+		};
 	case 0xE9 => c.pc=cpu_hl(c);
 	case 0xF9 => bus_tick(b,4);c.sp=cpu_hl(c);
 	case 0xE8,0xF8 =>

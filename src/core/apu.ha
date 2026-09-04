@@ -296,18 +296,29 @@ fn apu_mix_sample(bus: *Bus) (i16, i16) = {
 
 export fn apu_tick(bus: *Bus, cycles: int) void = {
 	if (cycles <= 0) return;
+
+	// The frame sequencer is clocked from the falling edge of a bit of the
+	// raw (CPU-rate) DIV counter. In CGB double speed mode DIV advances
+	// twice as fast in CPU-cycle terms, so the relevant bit shifts up by
+	// one to keep the real-world 512Hz rate unchanged.
+	const edge_bit: u16 = if (bus.double_speed) 0x2000 else 0x1000;
 	const start = bus.div_counter - (cycles: u16);
 	for (let i = 0; i < cycles; i += 1) {
+		const prev = start + (i: u16);
+		const cur = prev + 1;
+		if ((prev & edge_bit) != 0 && (cur & edge_bit) == 0) {
+			apu_frame_sequencer_step(bus);
+		};
+	};
+
+	// Channel timers and sample generation run at the fixed hardware
+	// (real-time) rate, unaffected by CPU double speed.
+	const dots = if (bus.double_speed) cycles / 2 else cycles;
+	for (let i = 0; i < dots; i += 1) {
 		apu_ch1_step(&bus.apu);
 		apu_ch2_step(&bus.apu);
 		apu_ch3_step(&bus.apu);
 		apu_ch4_step(&bus.apu);
-
-		const prev = start + (i: u16);
-		const cur = prev + 1;
-		if ((prev & 0x1000) != 0 && (cur & 0x1000) == 0) {
-			apu_frame_sequencer_step(bus);
-		};
 
 		bus.apu.sample_acc += SAMPLE_RATE;
 		if (bus.apu.sample_acc >= CPU_HZ) {
