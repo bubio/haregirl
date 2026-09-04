@@ -12,6 +12,38 @@ use os;
 use sdl;
 use strings;
 
+// apply_apu_power_up は実機のブートROMが行うAPUレジスタの初期化を代替する。
+// core::apu_reset は全レジスタを0にするが、実機はブートROM実行後
+// NR52(電源)・NR50(マスター音量)・NR51(左右振り分)・各チャンネルの
+// デフォルト値が設定済みの状態でゲーム本体に処理を渡す。多くの市販ROMは
+// 「起動時点で音源は既に有効」という前提でチャンネルのトリガーのみを行い、
+// これらのレジスタ自体を書き換えないため、ブートROMを実行しないHareGirlでは
+// 明示的に投入しないと常時無音になる(NR52を最初に書いて電源を入れないと、
+// 他のレジスタへの書き込みは無視される点に注意)。
+// テストROM実行に使われる core::rom_runner_init 自体は変更しない
+// (テストROMは自前で全レジスタを設定するため不要かつ、既存の合格テストへの
+// 回帰リスクを避けるため)。
+fn apply_apu_power_up(bus: *core::Bus) void = {
+	core::bus_write(bus, 0xFF26, 0xF1); // NR52: 電源ON(以降のレジスタ書き込みが有効になる)
+	core::bus_write(bus, 0xFF10, 0x80); // NR10
+	core::bus_write(bus, 0xFF11, 0xBF); // NR11
+	core::bus_write(bus, 0xFF12, 0xF3); // NR12
+	core::bus_write(bus, 0xFF14, 0xBF); // NR14
+	core::bus_write(bus, 0xFF16, 0x3F); // NR21
+	core::bus_write(bus, 0xFF17, 0x00); // NR22
+	core::bus_write(bus, 0xFF19, 0xBF); // NR24
+	core::bus_write(bus, 0xFF1A, 0x7F); // NR30
+	core::bus_write(bus, 0xFF1B, 0xFF); // NR31
+	core::bus_write(bus, 0xFF1C, 0x9F); // NR32
+	core::bus_write(bus, 0xFF1E, 0xBF); // NR34
+	core::bus_write(bus, 0xFF20, 0xFF); // NR41
+	core::bus_write(bus, 0xFF21, 0x00); // NR42
+	core::bus_write(bus, 0xFF22, 0x00); // NR43
+	core::bus_write(bus, 0xFF23, 0xBF); // NR44
+	core::bus_write(bus, 0xFF24, 0x77); // NR50: マスター音量(左右ともフル)
+	core::bus_write(bus, 0xFF25, 0xF3); // NR51: 左右チャンネル振り分け
+};
+
 fn save_path_for(rom_path: str) str = {
 	const dot = match (strings::rindex(rom_path, ".")) {
 	case let i: size =>
@@ -105,6 +137,7 @@ export fn run_rom(rom_path: str, scale: int, frames: int) void = {
 	if (!core::rom_runner_init(&runner, data, mode)) {
 		fmt::fatalf("ROMの読み込みに失敗しました: {}", rom_path);
 	};
+	apply_apu_power_up(&runner.bus);
 
 	const save_path = save_path_for(rom_path);
 	defer free(save_path);
@@ -167,6 +200,13 @@ export fn run_rom(rom_path: str, scale: int, frames: int) void = {
 			sdl::queue_audio(dev, samples: *[*]i16: *opaque,
 				(len(samples) * size(i16)): u32);
 		};
+
+		// run_test_screen/run_test_audio (フェーズ1/6) 同様、実時間の
+		// フレーム間隔(約16ms/60fps)に合わせて進行を待つ。これが無いと
+		// CPUが許す限りの速度でエミュレーションが進んでしまう(実機の
+		// 何倍もの速さでゲームが進行し、音声もキューに溜まり続けて
+		// 実時間再生と噛み合わなくなる)。
+		sdl::delay(16);
 
 		rendered += 1;
 		if (frames > 0 && rendered >= frames) break;
