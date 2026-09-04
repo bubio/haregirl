@@ -1,16 +1,14 @@
 use core;
 use fmt;
+use fs;
 use os;
 use sdl;
 use strconv;
 
 const version: str = "0.1.0";
 
-// TEST_SCREEN_SCALE は --test-screen で開くウィンドウの表示倍率(160x144 の何倍か)。
-const TEST_SCREEN_SCALE: int = 4;
-
 fn print_usage() void = {
-	fmt::println("Usage: HareGirl [--version] [--help] [--test-screen [--frames N]] [--test-audio [--frames N]]")!;
+	fmt::println("Usage: HareGirl [--version] [--help] [--test-screen [--frames N]] [--test-audio [--frames N]] [--config PATH] [--scale N] [--volume N] [--save-config] [--print-config]")!;
 };
 
 // run_test_audio は SDL2 の音声デバイスを開き、core::Apu が生成する PCM サンプルを
@@ -76,8 +74,8 @@ fn run_test_audio(frames: int) void = {
 // frames が 0 より大きい場合はその数のフレームを描画したら自動的に終了する
 // (ヘッドレス CI でのスモークテスト用、SDL_VIDEODRIVER=dummy と組み合わせて使う)。
 // frames が 0 の場合はウィンドウを閉じる操作(SDL_QUIT)があるまで描画し続ける。
-fn run_test_screen(frames: int) void = {
-	const v = match (video_init(TEST_SCREEN_SCALE)) {
+fn run_test_screen(frames: int, scale: int) void = {
+	const v = match (video_init(scale)) {
 	case let v: video =>
 		yield v;
 	case void =>
@@ -108,6 +106,11 @@ export fn main() void = {
 	let test_screen = false;
 	let test_audio = false;
 	let frames = 0;
+	let save_config = false;
+	let print_config = false;
+	let config_path: (str | void) = void;
+	let scale_override: (int | void) = void;
+	let volume_override: (int | void) = void;
 
 	for (let i = 1z; i < len(args); i += 1) {
 		switch (args[i]) {
@@ -132,13 +135,86 @@ export fn main() void = {
 			case =>
 				fmt::fatal("invalid --frames value: {}", args[i]);
 			};
+		case "--config" =>
+			i += 1;
+			if (i >= len(args)) {
+				fmt::fatal("--config requires an argument");
+			};
+			config_path = args[i];
+		case "--scale" =>
+			i += 1;
+			if (i >= len(args)) {
+				fmt::fatal("--scale requires an argument");
+			};
+			scale_override = match (strconv::stoi(args[i])) {
+			case let n: int =>
+				yield n;
+			case =>
+				fmt::fatal("invalid --scale value: {}", args[i]);
+			};
+		case "--volume" =>
+			i += 1;
+			if (i >= len(args)) {
+				fmt::fatal("--volume requires an argument");
+			};
+			volume_override = match (strconv::stoi(args[i])) {
+			case let n: int =>
+				yield n;
+			case =>
+				fmt::fatal("invalid --volume value: {}", args[i]);
+			};
+		case "--save-config" =>
+			save_config = true;
+		case "--print-config" =>
+			print_config = true;
 		case =>
 			fmt::fatal("unknown option: {}", args[i]);
 		};
 	};
 
+	const path = match (config_path) {
+	case let p: str =>
+		yield p;
+	case void =>
+		yield match (settings_path()) {
+		case let p: str =>
+			yield p;
+		case void =>
+			fmt::fatal("設定ファイルの場所を決定できません($HOME が未設定です)");
+		};
+	};
+
+	let settings = settings_load(path);
+	match (scale_override) {
+	case let n: int =>
+		settings.scale = n;
+	case void => void;
+	};
+	match (volume_override) {
+	case let n: int =>
+		settings.volume = n;
+	case void => void;
+	};
+
+	if (save_config) {
+		match (settings_save(path, settings)) {
+		case void =>
+			fmt::println("設定を保存しました:", path)!;
+		case let err: fs::error =>
+			fmt::fatal("設定の保存に失敗しました: {}", fs::strerror(err));
+		};
+		return;
+	};
+
+	if (print_config) {
+		fmt::printfln("config: {}", path)!;
+		fmt::printfln("scale={}", settings.scale)!;
+		fmt::printfln("volume={}", settings.volume)!;
+		return;
+	};
+
 	if (test_screen) {
-		run_test_screen(frames);
+		run_test_screen(frames, settings.scale);
 		return;
 	};
 

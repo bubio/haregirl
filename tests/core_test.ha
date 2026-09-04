@@ -157,6 +157,60 @@ fn test_cgb_extensions() void = {
 	check((core::bus_read(&b, 0xFF4D) & 0x01) == 0, "KEY1 armed bit cleared after switch");
 };
 
+fn test_save_state() void = {
+	let rom: [0x150]u8 = [0...];
+	rom[0x147] = 0x1B; // MBC5+RAM+BATTERY
+	rom[0x148] = 0x00; // 32KB ROM (2 banks)
+	rom[0x149] = 0x03; // 32KB RAM (4 banks)
+	rom[0x100] = 0x00; // NOP at the reset vector
+
+	let bus: core::Bus = core::Bus { ... };
+	check(core::bus_load_rom(&bus, rom[..]), "save state test ROM loaded");
+	let cpu: core::Cpu = core::Cpu { ... };
+	core::cpu_reset(&cpu, core::Gb_Mode::Dmg);
+	core::ppu_reset(&bus.ppu, core::Gb_Mode::Dmg);
+	core::apu_reset(&bus.apu);
+
+	// 状態を「初期値と違う」ことが分かるように変化させる。
+	cpu.a = 0x42; cpu.pc = 0x1234; cpu.sp = 0xCAFE;
+	core::bus_write(&bus, 0x0000, 0x0A); // RAM enable
+	core::bus_write(&bus, 0x4000, 0x02); // RAM bank 2
+	core::bus_write(&bus, 0xA100, 0x77);
+	core::bus_write(&bus, 0xFF40, 0x91); // LCDC
+	core::bus_write(&bus, 0xFF11, 0x80); // NR11 duty
+	core::bus_tick(&bus, 12345);
+
+	const snapshot = core::state_save(&bus, &cpu);
+	defer free(snapshot);
+
+	// スナップショット後にさらに状態を変えてから復元し、復元後の値が
+	// スナップショット時点のものに戻ることを確認する。
+	cpu.a = 0x00; cpu.pc = 0x0000;
+	core::bus_write(&bus, 0xA100, 0x00);
+	core::bus_tick(&bus, 999);
+
+	let restored: core::Bus = core::Bus { ... };
+	check(core::bus_load_rom(&restored, rom[..]), "save state restore ROM loaded");
+	let restored_cpu: core::Cpu = core::Cpu { ... };
+	check(core::state_load(&restored, &restored_cpu, snapshot),
+		"state_load accepts a snapshot for the same ROM");
+
+	check(restored_cpu.a == 0x42 && restored_cpu.pc == 0x1234
+		&& restored_cpu.sp == 0xCAFE, "CPU registers restored");
+	check(core::bus_read(&restored, 0xFF40) == 0x91, "PPU register restored");
+	core::bus_write(&restored, 0x4000, 0x02);
+	check(core::bus_read(&restored, 0xA100) == 0x77, "cartridge RAM restored");
+	check(restored.cycles == bus.cycles - 999, "bus cycle count restored");
+
+	// マジック/バージョンが壊れたデータや ROM 不一致は false を返し、
+	// 復元先の状態を変更しない。
+	let garbage: [8]u8 = [0...];
+	let untouched: core::Bus = core::Bus { ... };
+	let untouched_cpu: core::Cpu = core::Cpu { ... };
+	check(!core::state_load(&untouched, &untouched_cpu, garbage[..]),
+		"state_load rejects invalid data");
+};
+
 export fn main() void = {
 	test_registers();
 	test_bus();
@@ -166,6 +220,7 @@ export fn main() void = {
 	test_interrupts();
 	test_serial();
 	test_cgb_extensions();
+	test_save_state();
 	test_rom_runner();
 	test_blargg_runner();
 	test_blargg_roms();

@@ -23,6 +23,21 @@ SDL_VIDEODRIVER=dummy "$root_dir/build/haregirl" --test-screen --frames 3
 # 完走することを確認する(フェーズ6 DoD の実時間再生パスのスモークテスト)。
 SDL_AUDIODRIVER=dummy "$root_dir/build/haregirl" --test-audio --frames 3
 
+# フェーズ8 DoD: 設定ファイルの保存・読込ラウンドトリップ(--config で任意の
+# 場所を指定できることも合わせて確認する)。
+config_test_file="$root_dir/build/config-test.ini"
+rm -f "$config_test_file"
+"$root_dir/build/haregirl" --config "$config_test_file" --scale 7 --volume 55 --save-config >/dev/null
+printed=$("$root_dir/build/haregirl" --config "$config_test_file" --print-config)
+case "$printed" in
+	*"scale=7"*"volume=55"*) : ;;
+	*)
+		echo "config round-trip failed: $printed" >&2
+		exit 1
+		;;
+esac
+rm -f "$config_test_file"
+
 # CPU・バスのフェーズ2単体スモークテスト。
 stdlib_paths=$(hare version -v | awk '
 	/^HAREPATH:/ { infield=1; next }
