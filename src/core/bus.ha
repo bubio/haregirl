@@ -19,6 +19,7 @@ export type Bus = struct {
 	timer_reload_just_happened: bool,
 	serial_log: []u8,
 	ppu: Ppu,
+	apu: Apu,
 };
 
 export fn bus_load_rom(bus: *Bus, data: []u8) bool = {
@@ -32,6 +33,7 @@ export fn bus_tick(bus: *Bus, cycles: int) void = {
 		bus.cycles += cycles: u64;
 		timer_tick(bus, cycles);
 		ppu_tick(bus, cycles);
+		apu_tick(bus, cycles);
 	};
 };
 
@@ -52,6 +54,9 @@ export fn bus_read(bus: *Bus, addr: u16) u8 = {
 	} else if (addr < 0xFF00) {
 		return 0xFF;
 	} else if (addr < 0xFF80) {
+		if ((addr >= 0xFF10 && addr <= 0xFF26) || (addr >= 0xFF30 && addr <= 0xFF3F)) {
+			return apu_read(bus, addr);
+		};
 		switch (addr) {
 		case 0xFF40 => return bus.ppu.lcdc;
 		case 0xFF41 => return bus.ppu.stat | 0x80;
@@ -98,6 +103,10 @@ export fn bus_write(bus: *Bus, addr: u16, value: u8) void = {
 	} else if (addr < 0xFF00) {
 		bus.cycles += 0;
 	} else if (addr < 0xFF80) {
+		if ((addr >= 0xFF10 && addr <= 0xFF26) || (addr >= 0xFF30 && addr <= 0xFF3F)) {
+			apu_write(bus, addr, value);
+			return;
+		};
 		switch (addr) {
 		case 0xFF40 =>
 			ppu_write_lcdc(bus, value);

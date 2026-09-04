@@ -126,6 +126,7 @@ export fn main() void = {
 	test_mbc_roms();
 	test_cart_ram_save_restore();
 	test_dmg_acid2();
+	test_apu_roms();
 	fmt::println("core tests passed")!;
 	os::exit(0);
 };

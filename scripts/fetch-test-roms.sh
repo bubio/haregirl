@@ -57,6 +57,17 @@ fetch_blargg "cpu_instrs/individual/11-op a,(hl).gb" \
 fetch_blargg "instr_timing/instr_timing.gb" \
 	"$blargg_dir/instr_timing/instr_timing.gb"
 
+mkdir -p "$blargg_dir/dmg_sound/rom_singles"
+for n in \
+	"01-registers" "02-len ctr" "03-trigger" "04-sweep" \
+	"05-sweep details" "06-overflow on trigger" \
+	"07-len sweep period sync" "08-len ctr during power" \
+	"09-wave read while on" "10-wave trigger while on" \
+	"11-regs after power" "12-wave write while on"; do
+	fetch_blargg "dmg_sound/rom_singles/$n.gb" \
+		"$blargg_dir/dmg_sound/rom_singles/$n.gb"
+done
+
 acid2_dir="$rom_dir/dmg-acid2"
 acid2_url="https://github.com/mattcurrie/dmg-acid2/releases/download/v1.0/dmg-acid2.gb"
 mkdir -p "$acid2_dir"

@@ -18,6 +18,11 @@ fi
 # エラーなく完走することを確認する。--frames で自動終了させる。
 SDL_VIDEODRIVER=dummy "$root_dir/build/haregirl" --test-screen --frames 3
 
+# SDL_AUDIODRIVER=dummy でヘッドレス環境(CI)でも --test-audio の一連の処理
+# (SDL2 音声デバイス初期化・APU 駆動・SDL_QueueAudio・破棄)がエラーなく
+# 完走することを確認する(フェーズ6 DoD の実時間再生パスのスモークテスト)。
+SDL_AUDIODRIVER=dummy "$root_dir/build/haregirl" --test-audio --frames 3
+
 # CPU・バスのフェーズ2単体スモークテスト。
 stdlib_paths=$(hare version -v | awk '
 	/^HAREPATH:/ { infield=1; next }
