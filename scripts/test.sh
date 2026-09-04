@@ -38,6 +38,27 @@ case "$printed" in
 esac
 rm -f "$config_test_file"
 
+# フェーズ9 DoD: 「ROM 起動、入力、終了が CLI から完結する」ことのスモークテスト。
+# 電池バックアップ付きMBC1・8KB RAMの最小ROMを合成し、--frames で自動終了させた後
+# 電池バックアップRAMがROMと同じディレクトリへ "<rom>.sav" として書き出されることを
+# 確認する(実際のジョイパッド入力・描画・音声経路もこの起動シーケンスで通過する)。
+rom_test_file="$root_dir/build/rom-test.gb"
+rom_test_sav="$root_dir/build/rom-test.sav"
+rm -f "$rom_test_file" "$rom_test_sav"
+# printf の \xHH は POSIX 未規定(dash では解釈されずリテラル文字列になる)ため、
+# 全シェルで確実に動く8進エスケープ(\0NNN)でバイト列を組み立てる。
+head -c 32768 /dev/zero > "$rom_test_file"
+printf '\000\303\000\001' | dd of="$rom_test_file" bs=1 seek=256 conv=notrunc status=none
+printf '\003' | dd of="$rom_test_file" bs=1 seek=327 conv=notrunc status=none # 0x147: MBC1+RAM+BATTERY
+printf '\000' | dd of="$rom_test_file" bs=1 seek=328 conv=notrunc status=none # 0x148: 32KB ROM
+printf '\002' | dd of="$rom_test_file" bs=1 seek=329 conv=notrunc status=none # 0x149: 8KB RAM
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy "$root_dir/build/haregirl" --frames 3 "$rom_test_file"
+if [ ! -f "$rom_test_sav" ]; then
+	echo "ROM launch smoke test: battery save file was not created" >&2
+	exit 1
+fi
+rm -f "$rom_test_file" "$rom_test_sav"
+
 # CPU・バスのフェーズ2単体スモークテスト。
 stdlib_paths=$(hare version -v | awk '
 	/^HAREPATH:/ { infield=1; next }

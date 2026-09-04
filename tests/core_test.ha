@@ -211,6 +211,20 @@ fn test_save_state() void = {
 		"state_load rejects invalid data");
 };
 
+fn test_joypad() void = {
+	let b: core::Bus = core::Bus { ... };
+	core::bus_write(&b, 0xFF00, 0x10); // select buttons row (P15=0), dpad row deselected
+	check((core::bus_read(&b, 0xFF00) & 0x0F) == 0x0F, "no buttons pressed reads all-1");
+	core::joypad_set_buttons(&b, core::JOYPAD_A);
+	check((core::bus_read(&b, 0xFF00) & 0x01) == 0, "A press pulls P10 low when buttons row selected");
+	check((core::bus_read(&b, 0xFF0F) & core::INT_JOYPAD) != 0, "joypad interrupt requested on press");
+	core::bus_write(&b, 0xFF0F, 0);
+	core::bus_write(&b, 0xFF00, 0x20); // select dpad row instead
+	check((core::bus_read(&b, 0xFF00) & 0x01) != 0, "buttons row no longer visible once deselected");
+	core::joypad_set_dpad(&b, core::JOYPAD_DOWN);
+	check((core::bus_read(&b, 0xFF00) & 0x08) == 0, "Down press pulls P13 low when dpad row selected");
+};
+
 export fn main() void = {
 	test_registers();
 	test_bus();
@@ -221,6 +235,7 @@ export fn main() void = {
 	test_serial();
 	test_cgb_extensions();
 	test_save_state();
+	test_joypad();
 	test_rom_runner();
 	test_blargg_runner();
 	test_blargg_roms();

@@ -33,6 +33,10 @@ export type Bus = struct {
 	hdma_dst: u16,
 	hdma_active: bool,
 	hdma_remaining: u8,
+	// Joypad (FF00): アクティブハイの押下状態(1=押下)。実際のレジスタ値は
+	// joypad_read() で選択ビットと合成してアクティブローに変換する。
+	btn_dpad: u8,
+	btn_buttons: u8,
 };
 
 export fn bus_load_rom(bus: *Bus, data: []u8) bool = {
@@ -123,6 +127,7 @@ export fn bus_read(bus: *Bus, addr: u16) u8 = {
 			return apu_read(bus, addr);
 		};
 		switch (addr) {
+		case 0xFF00 => return joypad_read(bus);
 		case 0xFF40 => return bus.ppu.lcdc;
 		case 0xFF41 => return bus.ppu.stat | 0x80;
 		case 0xFF42 => return bus.ppu.scy;
@@ -205,6 +210,8 @@ export fn bus_write(bus: *Bus, addr: u16, value: u8) void = {
 			return;
 		};
 		switch (addr) {
+		case 0xFF00 =>
+			joypad_write_select(bus, value);
 		case 0xFF40 =>
 			ppu_write_lcdc(bus, value);
 		case 0xFF41 =>

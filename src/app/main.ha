@@ -4,11 +4,12 @@ use fs;
 use os;
 use sdl;
 use strconv;
+use strings;
 
 const version: str = "0.1.0";
 
 fn print_usage() void = {
-	fmt::println("Usage: HareGirl [--version] [--help] [--test-screen [--frames N]] [--test-audio [--frames N]] [--config PATH] [--scale N] [--volume N] [--save-config] [--print-config]")!;
+	fmt::println("Usage: HareGirl [--version] [--help] [--test-screen [--frames N]] [--test-audio [--frames N]] [--config PATH] [--scale N] [--volume N] [--save-config] [--print-config] [ROM]")!;
 };
 
 // run_test_audio は SDL2 の音声デバイスを開き、core::Apu が生成する PCM サンプルを
@@ -111,6 +112,7 @@ export fn main() void = {
 	let config_path: (str | void) = void;
 	let scale_override: (int | void) = void;
 	let volume_override: (int | void) = void;
+	let rom_path: (str | void) = void;
 
 	for (let i = 1z; i < len(args); i += 1) {
 		switch (args[i]) {
@@ -168,7 +170,10 @@ export fn main() void = {
 		case "--print-config" =>
 			print_config = true;
 		case =>
-			fmt::fatalf("unknown option: {}", args[i]);
+			if (strings::hasprefix(args[i], "-")) {
+				fmt::fatalf("unknown option: {}", args[i]);
+			};
+			rom_path = args[i];
 		};
 	};
 
@@ -221,6 +226,13 @@ export fn main() void = {
 	if (test_audio) {
 		run_test_audio(frames);
 		return;
+	};
+
+	match (rom_path) {
+	case let p: str =>
+		run_rom(p, settings.scale, frames);
+		return;
+	case void => void;
 	};
 
 	print_usage();
