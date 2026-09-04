@@ -120,23 +120,29 @@ fn ppu_update_lyc(bus: *Bus) void = {
 	};
 };
 
-// Fetches one background/window pixel's color id and CGB attribute byte
-// (0 outside CGB mode) from the tile at (map_addr, in_row/in_col).
-fn ppu_bg_pixel(bus: *Bus, map_addr: u16, in_row: u8, in_col: u8) (u8, u8) = {
+// Fetches one background/window tile's two bitplane bytes and CGB attribute
+// byte (0 outside CGB mode) at (map_addr, in_row). The result is shared by up
+// to 8 consecutive screen pixels within the same tile column, so callers
+// should re-fetch only when the tile column changes rather than per pixel.
+fn ppu_bg_tile_fetch(bus: *Bus, map_addr: u16, in_row: u8) (u8, u8, u8) = {
 	const p = &bus.ppu;
 	const cgb = p.mode_gb == Gb_Mode::Cgb;
 	const tile_id = vram_at(bus, 0, map_addr);
 	const attr: u8 = if (cgb) vram_at(bus, 1, map_addr) else 0;
 	const bank: u8 = (attr >> 3) & 1;
-	const xflip = (attr & 0x20) != 0;
 	const yflip = (attr & 0x40) != 0;
 	const row = if (yflip) 7 - in_row else in_row;
 	const addr = ppu_tile_addr(p, tile_id, row: u16);
 	const lo = vram_at(bus, bank, addr);
 	const hi = vram_at(bus, bank, addr + 1);
+	return (lo, hi, attr);
+};
+
+// Extracts one pixel's color id from a tile fetched by ppu_bg_tile_fetch.
+fn ppu_tile_pixel_id(lo: u8, hi: u8, attr: u8, in_col: u8) u8 = {
+	const xflip = (attr & 0x20) != 0;
 	const bit: u8 = if (xflip) in_col else 7 - in_col;
-	const id: u8 = (((hi >> bit) & 1) << 1) | ((lo >> bit) & 1);
-	return (id, attr);
+	return (((hi >> bit) & 1) << 1) | ((lo >> bit) & 1);
 };
 
 // Renders one background/window/sprite scanline into the framebuffer using
@@ -155,19 +161,26 @@ fn ppu_render_line(bus: *Bus) void = {
 		const tile_row = (y / 8): u16;
 		const in_row = y % 8;
 		const map_base: u16 = if (ppu_bg_tilemap_9c00(p)) 0x9C00 else 0x9800;
-		for (let x = 0z; x < 160; x += 1) {
+		let x = 0z;
+		for (x < 160) {
 			const sx = (x: u8) + p.scx;
 			const tile_col = (sx / 8): u16;
-			const in_col = sx % 8;
+			const in_col0 = (sx % 8): size;
 			const map_addr = map_base + tile_row * 32 + tile_col;
-			const px = ppu_bg_pixel(bus, map_addr, in_row, in_col);
-			bg_color_id[x] = px.0;
-			if (cgb) {
-				bg_priority[x] = (px.1 & 0x80) != 0;
-				row_rgb[x] = ppu_cgb_bg_color(p, px.1 & 0x07, px.0);
-			} else {
-				row[x] = ppu_apply_palette(p.bgp, px.0);
+			const tile = ppu_bg_tile_fetch(bus, map_addr, in_row);
+			const run = 8 - in_col0;
+			const n = if (run < 160 - x) run else 160 - x;
+			for (let k = 0z; k < n; k += 1) {
+				const id = ppu_tile_pixel_id(tile.0, tile.1, tile.2, (in_col0 + k): u8);
+				bg_color_id[x + k] = id;
+				if (cgb) {
+					bg_priority[x + k] = (tile.2 & 0x80) != 0;
+					row_rgb[x + k] = ppu_cgb_bg_color(p, tile.2 & 0x07, id);
+				} else {
+					row[x + k] = ppu_apply_palette(p.bgp, id);
+				};
 			};
+			x += n;
 		};
 
 		if (ppu_window_enabled(p) && ly >= p.wy) {
@@ -177,21 +190,27 @@ fn ppu_render_line(bus: *Bus) void = {
 				const tile_row = (p.window_line / 8): u16;
 				const in_row = p.window_line % 8;
 				let drew = false;
-				for (let x = 0z; x < 160; x += 1) {
-					const wxpos = (x: int) - wx;
-					if (wxpos < 0) continue;
+				let x = if (wx > 0) wx: size else 0z;
+				for (x < 160) {
 					drew = true;
+					const wxpos = (x: int) - wx;
 					const tile_col = (wxpos: u16) / 8;
-					const in_col = (wxpos: u8) % 8;
+					const in_col0 = (wxpos: size) % 8;
 					const map_addr = win_map_base + tile_row * 32 + tile_col;
-					const px = ppu_bg_pixel(bus, map_addr, in_row, in_col);
-					bg_color_id[x] = px.0;
-					if (cgb) {
-						bg_priority[x] = (px.1 & 0x80) != 0;
-						row_rgb[x] = ppu_cgb_bg_color(p, px.1 & 0x07, px.0);
-					} else {
-						row[x] = ppu_apply_palette(p.bgp, px.0);
+					const tile = ppu_bg_tile_fetch(bus, map_addr, in_row);
+					const run = 8 - in_col0;
+					const n = if (run < 160 - x) run else 160 - x;
+					for (let k = 0z; k < n; k += 1) {
+						const id = ppu_tile_pixel_id(tile.0, tile.1, tile.2, (in_col0 + k): u8);
+						bg_color_id[x + k] = id;
+						if (cgb) {
+							bg_priority[x + k] = (tile.2 & 0x80) != 0;
+							row_rgb[x + k] = ppu_cgb_bg_color(p, tile.2 & 0x07, id);
+						} else {
+							row[x + k] = ppu_apply_palette(p.bgp, id);
+						};
 					};
+					x += n;
 				};
 				if (drew) p.window_line += 1;
 			};
