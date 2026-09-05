@@ -231,6 +231,8 @@ export fn main() void = {
 	test_cpu_steps();
 	test_stack_and_cb();
 	test_timer();
+	test_timer_batched();
+	test_audio_buffer();
 	test_interrupts();
 	test_serial();
 	test_cgb_extensions();

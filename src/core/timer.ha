@@ -22,26 +22,33 @@ fn timer_increment_tima(bus: *Bus) void = {
 	};
 };
 
-fn timer_advance_reload(bus: *Bus) void = {
-	if (bus.timer_reload_pending <= 0) return;
-	if (bus.timer_reload_pending == 1) {
-		bus.timer_reload_pending = 0;
-		bus.tima = bus.tma;
-		bus.timer_reload_just_happened = true;
-		interrupt_request(bus, INT_TIMER);
-	} else {
-		bus.timer_reload_pending -= 1;
-	};
-};
-
 export fn timer_tick(bus: *Bus, cycles: int) void = {
 	bus.timer_reload_just_happened = false;
-	for (let i = 0; i < cycles; i += 1) {
-		timer_advance_reload(bus);
-		const old_signal = timer_signal(bus.div_counter, bus.tac);
-		bus.div_counter += 1;
-		const new_signal = timer_signal(bus.div_counter, bus.tac);
-		if (old_signal && !new_signal) timer_increment_tima(bus);
+	if (cycles <= 0) return;
+	const enabled = (bus.tac & 0x04) != 0;
+	const period = 1 << (timer_selected_bit(bus.tac) + 1);
+	let remaining = cycles;
+	for (remaining > 0) {
+		// Only falling DIV edges and delayed reloads can change TIMA.
+		// Preserve reload-before-edge ordering, including DIV wrapping.
+		const edge = if (enabled)
+			period - ((bus.div_counter: int) & (period - 1)) else 0;
+		let step = remaining;
+		if (enabled && edge < step) step = edge;
+		if (bus.timer_reload_pending > 0 && bus.timer_reload_pending < step) {
+			step = bus.timer_reload_pending;
+		};
+		if (bus.timer_reload_pending > 0) {
+			bus.timer_reload_pending -= step;
+			if (bus.timer_reload_pending == 0) {
+				bus.tima = bus.tma;
+				bus.timer_reload_just_happened = true;
+				interrupt_request(bus, INT_TIMER);
+			};
+		};
+		bus.div_counter += step: u16;
+		if (enabled && step == edge) timer_increment_tima(bus);
+		remaining -= step;
 	};
 };
 

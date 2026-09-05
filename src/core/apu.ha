@@ -346,7 +346,8 @@ export fn apu_tick(bus: *Bus, cycles: int) void = {
 	const edge_bit: u16 = if (bus.double_speed) 0x2000 else 0x1000;
 	const period = (edge_bit: u64) * 2;
 	const start = (bus.div_counter - (cycles: u16)): u64;
-	const edges = (start + (cycles: u64)) / period - start / period;
+	const edge_shift = if (bus.double_speed) 14u64 else 13u64;
+	const edges = ((start & (period - 1)) + (cycles: u64)) >> edge_shift;
 	for (let i = 0u64; i < edges; i += 1) {
 		apu_frame_sequencer_step(bus);
 	};
@@ -372,8 +373,12 @@ export fn apu_tick(bus: *Bus, cycles: int) void = {
 	for (remaining > 0) {
 		// Dots until sample_acc would next cross CPU_HZ (always >= 1, since
 		// sample_acc stays below CPU_HZ between samples).
-		const to_next = (CPU_HZ - a.sample_acc + rate - 1) / rate;
-		const step = if (to_next < remaining) to_next else remaining;
+		// Most bus accesses end before the next sample. Avoid a division
+		// on that hot path; split only when a sample boundary is reached.
+		let step = remaining;
+		if (a.sample_acc + remaining * rate >= CPU_HZ) {
+			step = (CPU_HZ - a.sample_acc + rate - 1) / rate;
+		};
 		apu_ch1_advance(a, step);
 		apu_ch2_advance(a, step);
 		apu_ch3_advance(a, step);
@@ -396,6 +401,14 @@ export fn apu_take_samples(bus: *Bus) []i16 = {
 	const out = bus.apu.samples;
 	bus.apu.samples = [];
 	return out;
+};
+
+// Borrow until the next tick/clear/take. The caller must not free this slice.
+export fn apu_samples(bus: *Bus) []i16 = bus.apu.samples;
+
+// Retain the allocation for the next frame after the consumer has copied PCM.
+export fn apu_clear_samples(bus: *Bus) void = {
+	delete(bus.apu.samples[..]);
 };
 
 // apu_length_enable_quirk_* model the DMG "extra length clock" quirk: if a

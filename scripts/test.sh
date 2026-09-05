@@ -57,6 +57,15 @@ if [ ! -f "$rom_test_sav" ]; then
 	echo "ROM launch smoke test: battery save file was not created" >&2
 	exit 1
 fi
+# Benchmarking must work without SDL and must not create a battery save.
+rm -f "$rom_test_sav"
+SDL_VIDEODRIVER=unavailable SDL_AUDIODRIVER=unavailable \
+	"$root_dir/build/haregirl" --benchmark --frames 3 "$rom_test_file"
+[ ! -f "$rom_test_sav" ]
+if "$root_dir/build/haregirl" --benchmark "$rom_test_file" >/dev/null 2>&1; then
+	echo "benchmark without positive frame count was accepted" >&2
+	exit 1
+fi
 rm -f "$rom_test_file" "$rom_test_sav"
 
 # CPU・バスのフェーズ2単体スモークテスト。

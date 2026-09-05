@@ -9,7 +9,7 @@ use strings;
 const version: str = "0.1.0";
 
 fn print_usage() void = {
-	fmt::println("Usage: HareGirl [--version] [--help] [--test-screen [--frames N]] [--test-audio [--frames N]] [--config PATH] [--scale N] [--volume N] [--save-config] [--print-config] [ROM]")!;
+	fmt::println("Usage: HareGirl [--version] [--help] [--test-screen [--frames N]] [--test-audio [--frames N]] [--benchmark --frames N] [--config PATH] [--scale N] [--volume N] [--save-config] [--print-config] [ROM]")!;
 };
 
 // run_test_audio は SDL2 の音声デバイスを開き、core::Apu が生成する PCM サンプルを
@@ -57,12 +57,12 @@ fn run_test_audio(frames: int) void = {
 	let rendered = 0;
 	for (true) {
 		core::bus_tick(&bus, core::CYCLES_PER_FRAME: int);
-		let samples = core::apu_take_samples(&bus);
-		defer free(samples);
+		let samples = core::apu_samples(&bus);
 		if (len(samples) > 0) {
 			sdl::queue_audio(dev, samples: *[*]i16: *opaque,
 				(len(samples) * size(i16)): u32);
 		};
+		core::apu_clear_samples(&bus);
 		// キューに溜まりすぎないよう、実時間のフレーム間隔に合わせて待つ。
 		sdl::delay(16);
 		rendered += 1;
@@ -106,6 +106,7 @@ export fn main() void = {
 	let args = os::args;
 	let test_screen = false;
 	let test_audio = false;
+	let benchmark = false;
 	let frames = 0;
 	let save_config = false;
 	let print_config = false;
@@ -126,6 +127,8 @@ export fn main() void = {
 			test_screen = true;
 		case "--test-audio" =>
 			test_audio = true;
+		case "--benchmark" =>
+			benchmark = true;
 		case "--frames" =>
 			i += 1;
 			if (i >= len(args)) {
@@ -175,6 +178,11 @@ export fn main() void = {
 			};
 			rom_path = args[i];
 		};
+	};
+
+	if (benchmark && (frames <= 0 || test_screen || test_audio
+		|| save_config || print_config || rom_path is void)) {
+		fmt::fatal("--benchmark requires a ROM and --frames N (N > 0), without test/config actions");
 	};
 
 	const path = match (config_path) {
@@ -230,7 +238,7 @@ export fn main() void = {
 
 	match (rom_path) {
 	case let p: str =>
-		run_rom(p, settings.scale, settings.volume, frames);
+		run_rom(p, settings.scale, settings.volume, frames, benchmark);
 		return;
 	case void => void;
 	};

@@ -132,7 +132,7 @@ fn apply_volume(samples: []i16, volume: int) void = {
 // run_rom は rom_path のROMを実行し続ける。ウィンドウを閉じるか Escape キーで
 // 終了する。frames > 0 の場合はその数のフレーム描画後に自動終了する
 // (ヘッドレスCIでのスモークテスト用)。
-export fn run_rom(rom_path: str, scale: int, volume: int, frames: int) void = {
+export fn run_rom(rom_path: str, scale: int, volume: int, frames: int, benchmark: bool) void = {
 	const file = match (os::open(rom_path)) {
 	case let f: io::file =>
 		yield f;
@@ -158,6 +158,10 @@ export fn run_rom(rom_path: str, scale: int, volume: int, frames: int) void = {
 		fmt::fatalf("ROMの読み込みに失敗しました: {}", rom_path);
 	};
 	apply_apu_power_up(&runner.bus);
+	if (benchmark) {
+		run_benchmark(&runner, frames);
+		return;
+	};
 
 	const save_path = save_path_for(rom_path);
 	defer free(save_path);
@@ -233,13 +237,13 @@ export fn run_rom(rom_path: str, scale: int, volume: int, frames: int) void = {
 		frame_to_argb(&runner.bus, fb);
 		video_present(&v, fb);
 
-		const samples = core::apu_take_samples(&runner.bus);
-		defer free(samples);
+		const samples = core::apu_samples(&runner.bus);
 		if (len(samples) > 0) {
 			apply_volume(samples, volume);
 			sdl::queue_audio(dev, samples: *[*]i16: *opaque,
 				(len(samples) * size(i16)): u32);
 		};
+		core::apu_clear_samples(&runner.bus);
 
 		// 固定delayではなく、実際のオーディオ再生キューの残量で進行を
 		// スロットリングする。これによりエミュレーション速度は
