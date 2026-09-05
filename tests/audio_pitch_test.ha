@@ -132,3 +132,65 @@ fn test_audio_pitch() void = {
 		};
 	};
 };
+
+// Compare bus-sized and long spans against one-dot stepping. Cover timer
+// edges, all noise settings (including existing u16 overflow behavior),
+// muted wave output, and periods on both sides of the sample boundary.
+fn test_audio_spans() void = {
+	const frequencies: [8]u16 = [0, 1024, 1920, 2000, 2044, 2045, 2046, 2047];
+	for (let setting = 0u16; setting < 512; setting += 1) {
+		let bulk = core::Bus { ... };
+		const a = &bulk.apu;
+		a.enabled = true;
+		a.nr50 = 0x77;
+		a.nr51 = 0xFF;
+		a.ch1_enabled = true; a.ch1_dac_enabled = true;
+		a.ch2_enabled = true; a.ch2_dac_enabled = true;
+		a.ch3_enabled = true; a.ch3_dac_enabled = true;
+		a.ch4_enabled = true; a.ch4_dac_enabled = true;
+		a.ch1_volume = 9; a.ch2_volume = 7; a.ch4_volume = 15;
+		a.ch1_duty = 2; a.ch2_duty = 1;
+		a.ch1_freq = frequencies[setting & 7];
+		a.ch2_freq = frequencies[(setting >> 3) & 7];
+		a.ch3_freq = frequencies[setting & 7];
+		a.ch3_volume_code = ((setting >> 3) & 3): u8;
+		a.ch4_divisor_code = (setting & 7): u8;
+		a.ch4_clock_shift = ((setting >> 3) & 15): u8;
+		a.ch4_width_mode = (setting & 128) != 0;
+		a.ch4_lfsr = 0x7FFF;
+		const initial: u16 = if ((setting & 256) == 0) 0 else 17;
+		a.ch1_timer = initial; a.ch2_timer = initial;
+		a.ch3_timer = initial; a.ch4_timer = initial;
+		for (let i = 0z; i < 16; i += 1) a.wave_ram[i] = (i * 37): u8;
+		let single = bulk;
+		let elapsed_dots = 0;
+		for (elapsed_dots < 4096) {
+			let span = if ((setting & 1) == 0) 4 else 257;
+			if (span > 4096 - elapsed_dots) span = 4096 - elapsed_dots;
+			bulk.div_counter += span: u16;
+			core::apu_tick(&bulk, span);
+			for (let i = 0; i < span; i += 1) {
+				single.div_counter += 1;
+				core::apu_tick(&single, 1);
+			};
+			elapsed_dots += span;
+		};
+		const b = &single.apu;
+		check(a.ch1_timer == b.ch1_timer && a.ch1_duty_pos == b.ch1_duty_pos,
+			"pulse 1 span preserves timer and phase");
+		check(a.ch2_timer == b.ch2_timer && a.ch2_duty_pos == b.ch2_duty_pos,
+			"pulse 2 span preserves timer and phase");
+		check(a.ch3_timer == b.ch3_timer && a.ch3_pos == b.ch3_pos,
+			"wave span preserves timer and phase");
+		check(a.ch4_timer == b.ch4_timer && a.ch4_lfsr == b.ch4_lfsr,
+			"noise span preserves timer and LFSR");
+		check(a.wave_area == b.wave_area && a.noise_area == b.noise_area,
+			"span preserves unfinished sample integrals");
+		check(len(a.samples) == len(b.samples), "span preserves sample count");
+		for (let i = 0z; i < len(a.samples); i += 1) {
+			check(a.samples[i] == b.samples[i], "span PCM matches one-dot stepping");
+		};
+		free(a.samples);
+		free(b.samples);
+	};
+};

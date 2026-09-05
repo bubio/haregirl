@@ -117,12 +117,8 @@ fn apu_ch3_freq_period(a: *Apu) u16 = (2048 - a.ch3_freq) * 2;
 fn apu_periodic_wraps(timer: *u16, period: u16, dots: u64) u64 = {
 	if (dots == 0) return 0;
 	if (period == 0) {
-		// Pre-existing edge case, not introduced by this closed-form
-		// rewrite: high noise divisor*clock-shift combinations overflow the
-		// u16 storage used for ch4_timer/period and truncate to 0. The old
-		// per-dot code just kept re-assigning timer=0 and shifting the LFSR
-		// every single dot in that case; reproduce that instead of dividing
-		// by zero.
+		// Normal pulse frequencies have a nonzero period. Keep the
+		// existing zero-period behavior for out-of-range restored state.
 		*timer = 0;
 		return dots;
 	};
@@ -134,62 +130,6 @@ fn apu_periodic_wraps(timer: *u16, period: u16, dots: u64) u64 = {
 	const wraps = 1 + remaining / (period: u64);
 	*timer = period - ((remaining % (period: u64)): u16);
 	return wraps;
-};
-
-fn apu_ch1_advance(a: *Apu, dots: u64) void = {
-	if (!a.ch1_enabled) return;
-	if (dots < a.ch1_timer: u64) {
-		a.ch1_timer -= dots: u16;
-		return;
-	};
-	const wraps = apu_periodic_wraps(&a.ch1_timer, apu_ch1_freq_period(a), dots);
-	a.ch1_duty_pos = (((a.ch1_duty_pos: u64) + wraps) % 8): u8;
-};
-
-fn apu_ch2_advance(a: *Apu, dots: u64) void = {
-	if (!a.ch2_enabled) return;
-	if (dots < a.ch2_timer: u64) {
-		a.ch2_timer -= dots: u16;
-		return;
-	};
-	const wraps = apu_periodic_wraps(&a.ch2_timer, apu_ch2_freq_period(a), dots);
-	a.ch2_duty_pos = (((a.ch2_duty_pos: u64) + wraps) % 8): u8;
-};
-
-fn apu_ch3_advance(a: *Apu, dots: u64) void = {
-	if (!a.ch3_enabled) return;
-	if (dots < a.ch3_timer: u64) {
-		a.ch3_timer -= dots: u16;
-		return;
-	};
-	const wraps = apu_periodic_wraps(&a.ch3_timer, apu_ch3_freq_period(a), dots);
-	a.ch3_pos = (((a.ch3_pos: u64) + wraps) % 32): u8;
-};
-
-// Channel 4's LFSR is a true shift register (each reload depends on the
-// previous state), so it cannot be jumped to with closed-form math like the
-// other channels' duty/wave position counters; only the reload *count* can
-// (via apu_periodic_wraps), and the shift itself still runs once per reload.
-// In practice `wraps` is 0 or 1 for the small per-instruction cycle counts
-// apu_tick is normally called with, so this is no longer a per-dot loop.
-fn apu_ch4_advance(a: *Apu, dots: u64) void = {
-	if (!a.ch4_enabled) return;
-	const period = NOISE_DIVISORS[a.ch4_divisor_code] << a.ch4_clock_shift;
-	// A zero period has special legacy behavior in apu_periodic_wraps;
-	// retain it even if a previous register setting left a nonzero timer.
-	if (period != 0 && dots < a.ch4_timer: u64) {
-		a.ch4_timer -= dots: u16;
-		return;
-	};
-	const wraps = apu_periodic_wraps(&a.ch4_timer, period, dots);
-	for (let i = 0u64; i < wraps; i += 1) {
-		const bit = (a.ch4_lfsr & 1) ^ ((a.ch4_lfsr >> 1) & 1);
-		a.ch4_lfsr = (a.ch4_lfsr >> 1) | (bit << 14);
-		if (a.ch4_width_mode) {
-			a.ch4_lfsr &= ~(1u16 << 6);
-			a.ch4_lfsr |= bit << 6;
-		};
-	};
 };
 
 fn apu_length_clock(a: *Apu) void = {
@@ -320,23 +260,47 @@ fn apu_integrate_wave(a: *Apu, dots: u64) void = {
 	if (!a.ch3_enabled) return;
 	let remaining = dots;
 	for (remaining > 0) {
-		let step = if (a.ch3_timer == 0) 1u64 else a.ch3_timer: u64;
-		if (step > remaining) step = remaining;
-		a.wave_area += (apu_ch3_amplitude(a): i64) * (step: i64);
-		apu_ch3_advance(a, step);
+		const amplitude = apu_ch3_amplitude(a): i64;
+		if (remaining < a.ch3_timer: u64) {
+			a.wave_area += amplitude * (remaining: i64);
+			a.ch3_timer -= remaining: u16;
+			return;
+		};
+		// This segment ends exactly at an edge: reload directly, without
+		// asking the general timer helper to divide and rediscover it.
+		const step = if (a.ch3_timer == 0) 1u64 else a.ch3_timer: u64;
+		a.wave_area += amplitude * (step: i64);
+		const zero_timer = a.ch3_timer == 0;
+		a.ch3_timer = apu_ch3_freq_period(a);
+		if (zero_timer) a.ch3_timer -= 1;
+		a.ch3_pos = (a.ch3_pos + 1) & 31;
 		remaining -= step;
 	};
 };
 
 fn apu_integrate_noise(a: *Apu, dots: u64) void = {
 	if (!a.ch4_enabled) return;
+	// Preserve the existing u16 overflow behavior: a zero period shifts
+	// the LFSR once per dot, even if an older setting left a live timer.
+	const period = NOISE_DIVISORS[a.ch4_divisor_code] << a.ch4_clock_shift;
 	let remaining = dots;
 	for (remaining > 0) {
-		const period = NOISE_DIVISORS[a.ch4_divisor_code] << a.ch4_clock_shift;
-		let step = if (a.ch4_timer == 0 || period == 0) 1u64 else a.ch4_timer: u64;
-		if (step > remaining) step = remaining;
-		a.noise_area += (apu_ch4_amplitude(a): i64) * (step: i64);
-		apu_ch4_advance(a, step);
+		const amplitude = apu_ch4_amplitude(a): i64;
+		if (period != 0 && remaining < a.ch4_timer: u64) {
+			a.noise_area += amplitude * (remaining: i64);
+			a.ch4_timer -= remaining: u16;
+			return;
+		};
+		const step = if (a.ch4_timer == 0 || period == 0) 1u64 else a.ch4_timer: u64;
+		a.noise_area += amplitude * (step: i64);
+		const zero_timer = a.ch4_timer == 0;
+		a.ch4_timer = period;
+		if (zero_timer && period != 0) a.ch4_timer -= 1;
+		const bit = (a.ch4_lfsr ^ (a.ch4_lfsr >> 1)) & 1;
+		a.ch4_lfsr = (a.ch4_lfsr >> 1) | (bit << 14);
+		if (a.ch4_width_mode) {
+			a.ch4_lfsr = (a.ch4_lfsr & ~0x40u16) | (bit << 6);
+		};
 		remaining -= step;
 	};
 };
@@ -443,8 +407,22 @@ export fn apu_tick(bus: *Bus, cycles: int) void = {
 		if (a.sample_acc + remaining * rate >= CPU_HZ) {
 			step = (CPU_HZ - a.sample_acc + rate - 1) / rate;
 		};
-		apu_ch1_advance(a, step);
-		apu_ch2_advance(a, step);
+		// Pulse timers normally only count down. Keep that common path
+		// here; only actual edges need the general wrap calculation.
+		if (a.ch1_enabled) {
+			if (step < a.ch1_timer: u64) a.ch1_timer -= step: u16
+			else {
+				const wraps = apu_periodic_wraps(&a.ch1_timer, apu_ch1_freq_period(a), step);
+				a.ch1_duty_pos = ((a.ch1_duty_pos: u64) + wraps): u8 & 7;
+			};
+		};
+		if (a.ch2_enabled) {
+			if (step < a.ch2_timer: u64) a.ch2_timer -= step: u16
+			else {
+				const wraps = apu_periodic_wraps(&a.ch2_timer, apu_ch2_freq_period(a), step);
+				a.ch2_duty_pos = ((a.ch2_duty_pos: u64) + wraps): u8 & 7;
+			};
+		};
 		apu_integrate_wave(a, step);
 		apu_integrate_noise(a, step);
 		a.sample_dots += step;

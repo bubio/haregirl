@@ -236,6 +236,7 @@ export fn main() void = {
 	test_audio_pitch();
 	test_audio_antialias();
 	test_noise_average();
+	test_audio_spans();
 	test_rom_mapping_restore();
 	test_interrupts();
 	test_serial();

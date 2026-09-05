@@ -80,14 +80,12 @@ fn ppu_rgb555_unpack(lo: u8, hi: u8) u32 = {
 	return ((r: u32) << 16) | ((g: u32) << 8) | (b: u32);
 };
 
-fn ppu_cgb_bg_color(p: *Ppu, palette: u8, id: u8) u32 = {
-	const base = ((palette & 0x07): size) * 8 + (id: size) * 2;
-	return ppu_rgb555_unpack(p.cgb_bg_pal[base], p.cgb_bg_pal[base + 1]);
-};
-
-fn ppu_cgb_obj_color(p: *Ppu, palette: u8, id: u8) u32 = {
-	const base = ((palette & 0x07): size) * 8 + (id: size) * 2;
-	return ppu_rgb555_unpack(p.cgb_obj_pal[base], p.cgb_obj_pal[base + 1]);
+// Palette RAM is fixed throughout a rendered scanline. Decode each color
+// once into a small stack table instead of converting RGB555 per pixel.
+fn ppu_decode_palette(ram: *[64]u8, colors: *[32]u32) void = {
+	for (let i = 0z; i < 32; i += 1) {
+		colors[i] = ppu_rgb555_unpack(ram[i * 2], ram[i * 2 + 1]);
+	};
 };
 
 fn ppu_set_mode(bus: *Bus, mode: u8) void = {
@@ -155,6 +153,8 @@ fn ppu_render_line(bus: *Bus) void = {
 	let row_rgb: [160]u32 = [0...];
 	let bg_color_id: [160]u8 = [0...];
 	let bg_priority: [160]bool = [false...];
+	let bg_colors: [32]u32 = [0...];
+	if (cgb) ppu_decode_palette(&p.cgb_bg_pal, &bg_colors);
 
 	if (ppu_bg_window_enabled(p)) {
 		const y = ly + p.scy;
@@ -175,7 +175,7 @@ fn ppu_render_line(bus: *Bus) void = {
 				bg_color_id[x + k] = id;
 				if (cgb) {
 					bg_priority[x + k] = (tile.2 & 0x80) != 0;
-					row_rgb[x + k] = ppu_cgb_bg_color(p, tile.2 & 0x07, id);
+					row_rgb[x + k] = bg_colors[((tile.2 & 0x07): size) * 4 + id];
 				} else {
 					row[x + k] = ppu_apply_palette(p.bgp, id);
 				};
@@ -205,7 +205,7 @@ fn ppu_render_line(bus: *Bus) void = {
 						bg_color_id[x + k] = id;
 						if (cgb) {
 							bg_priority[x + k] = (tile.2 & 0x80) != 0;
-							row_rgb[x + k] = ppu_cgb_bg_color(p, tile.2 & 0x07, id);
+							row_rgb[x + k] = bg_colors[((tile.2 & 0x07): size) * 4 + id];
 						} else {
 							row[x + k] = ppu_apply_palette(p.bgp, id);
 						};
@@ -293,6 +293,9 @@ fn ppu_render_sprites(
 		};
 	};
 
+	let obj_colors: [32]u32 = [0...];
+	if (cgb && count > 0) ppu_decode_palette(&p.cgb_obj_pal, &obj_colors);
+
 	// Draw back-to-front so that the earlier (higher priority) sprite in
 	// the sorted order ends up visible.
 	for (let i = count - 1; i >= 0; i -= 1) {
@@ -322,7 +325,7 @@ fn ppu_render_sprites(
 					&& bg_color_id[sx] != 0) {
 					continue;
 				};
-				row_rgb[sx] = ppu_cgb_obj_color(p, cgb_palette, id);
+				row_rgb[sx] = obj_colors[(cgb_palette: size) * 4 + id];
 			} else {
 				if (behind_bg && bg_color_id[sx] != 0) continue;
 				row[sx] = ppu_apply_palette(palette, id);
