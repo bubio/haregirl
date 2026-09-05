@@ -1,8 +1,28 @@
 # HareGirl
+<p align="center">
+  <a href="https://github.com/bubio/haregirl/releases/latest">
+    <img src="https://img.shields.io/github/v/release/bubio/haregirl" alt="Latest Release">
+  </a>
+  <a href="https://github.com/bubio/haregirl/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/bubio/haregirl" alt="License">
+  </a>
+  <a href="https://github.com/bubio/haregirl/actions/workflows/ci.yml">
+    <img src="https://github.com/bubio/haregirl/actions/workflows/ci.yml/badge.svg">
+  </a>
+  <a href="https://github.com/bubio/haregirl/releases/latest">
+    <img src="https://img.shields.io/github/downloads/bubio/haregirl/total.svg" alt="Downloads">
+  </a>
+</p>
+
+<p align="center">
+  <img src="docs/CoverArt.jpg" alt="Cover" width="*" height="*">
+</p>
 
 Hare言語で書かれた、SDL2をマルチメディア層に利用するGame Boy Colorエミュレーターです。コマンドラインからROMを指定して起動します。
 
 エミュレーションコアは[BubiBoy Lite](https://github.com/bubio/BubiBoyLite)（Odin + SDL2、MIT License）をHareへ移植したものです。
+
+
 
 ## 現状
 
