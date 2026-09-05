@@ -36,8 +36,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
+            hare_arch: x86_64
             runner: ubuntu-22.04
           - arch: arm64
+            hare_arch: aarch64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     steps:
@@ -53,12 +55,12 @@ jobs:
           sudo make -C /tmp/qbe install PREFIX=/usr/local
           git clone --depth 1 https://git.sr.ht/~sircmpwn/harec /tmp/harec
           cp /tmp/harec/configs/linux.mk /tmp/harec/config.mk
-          make -C /tmp/harec -j"$(nproc)"
-          sudo make -C /tmp/harec install PREFIX=/usr/local
+          make -C /tmp/harec -j"$(nproc)" ARCH=${{ matrix.hare_arch }}
+          sudo make -C /tmp/harec install PREFIX=/usr/local ARCH=${{ matrix.hare_arch }}
           git clone --depth 1 https://git.sr.ht/~sircmpwn/hare /tmp/hare
           cp /tmp/hare/configs/linux.mk /tmp/hare/config.mk
-          make -C /tmp/hare -j"$(nproc)"
-          sudo make -C /tmp/hare install PREFIX=/usr/local
+          make -C /tmp/hare -j"$(nproc)" ARCH=${{ matrix.hare_arch }}
+          sudo make -C /tmp/hare install PREFIX=/usr/local ARCH=${{ matrix.hare_arch }}
       - name: Test and package
         run: |
           ./scripts/test.sh
