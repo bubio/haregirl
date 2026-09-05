@@ -249,6 +249,7 @@ export fn main() void = {
 	test_mooneye_roms();
 	test_mbc_roms();
 	test_cart_ram_save_restore();
+	test_ppu_tile_runs();
 	test_dmg_acid2();
 	test_apu_roms();
 	test_cgb_acid2();

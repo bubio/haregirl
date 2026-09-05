@@ -136,11 +136,25 @@ fn ppu_bg_tile_fetch(bus: *Bus, map_addr: u16, in_row: u8) (u8, u8, u8) = {
 	return (lo, hi, attr);
 };
 
-// Extracts one pixel's color id from a tile fetched by ppu_bg_tile_fetch.
-fn ppu_tile_pixel_id(lo: u8, hi: u8, attr: u8, in_col: u8) u8 = {
-	const xflip = (attr & 0x20) != 0;
-	const bit: u8 = if (xflip) in_col else 7 - in_col;
-	return (((hi >> bit) & 1) << 1) | ((lo >> bit) & 1);
+// Expand two bitplanes into eight packed 2-bit color IDs. The low pair
+// is the leftmost displayed pixel, including horizontal flip. This work
+// is shared by the entire tile run, rather than repeated for each pixel.
+fn ppu_tile_pixels(lo: u8, hi: u8, attr: u8) u16 = {
+	let low = lo: u16;
+	let high = hi: u16;
+	low = (low | (low << 4)) & 0x0F0F;
+	low = (low | (low << 2)) & 0x3333;
+	low = (low | (low << 1)) & 0x5555;
+	high = (high | (high << 4)) & 0x0F0F;
+	high = (high | (high << 2)) & 0x3333;
+	high = (high | (high << 1)) & 0x5555;
+	let pixels = low | (high << 1);
+	if ((attr & 0x20) == 0) {
+		pixels = (pixels << 8) | (pixels >> 8);
+		pixels = ((pixels & 0x0F0F) << 4) | ((pixels >> 4) & 0x0F0F);
+		pixels = ((pixels & 0x3333) << 2) | ((pixels >> 2) & 0x3333);
+	};
+	return pixels;
 };
 
 // Renders one background/window/sprite scanline into the framebuffer using
@@ -149,8 +163,14 @@ fn ppu_render_line(bus: *Bus) void = {
 	const p = &bus.ppu;
 	const cgb = p.mode_gb == Gb_Mode::Cgb;
 	const ly = p.ly;
-	let row: [160]u8 = [0...];
-	let row_rgb: [160]u32 = [0...];
+	// Render into the destination row. CGB always draws a full background;
+	// DMG only needs an explicit clear when its background is disabled.
+	const row_start = (ly: size) * 160;
+	const row = p.frame[row_start..row_start + 160];
+	const row_rgb = p.frame_rgb[row_start..row_start + 160];
+	if (!ppu_bg_window_enabled(p)) {
+		for (let x = 0z; x < 160; x += 1) row[x] = 0;
+	};
 	let bg_color_id: [160]u8 = [0...];
 	let bg_priority: [160]bool = [false...];
 	let bg_colors: [32]u32 = [0...];
@@ -168,10 +188,12 @@ fn ppu_render_line(bus: *Bus) void = {
 			const in_col0 = (sx % 8): size;
 			const map_addr = map_base + tile_row * 32 + tile_col;
 			const tile = ppu_bg_tile_fetch(bus, map_addr, in_row);
+			let pixels = ppu_tile_pixels(tile.0, tile.1, tile.2) >> (in_col0 * 2);
 			const run = 8 - in_col0;
 			const n = if (run < 160 - x) run else 160 - x;
 			for (let k = 0z; k < n; k += 1) {
-				const id = ppu_tile_pixel_id(tile.0, tile.1, tile.2, (in_col0 + k): u8);
+				const id = (pixels & 3): u8;
+				pixels >>= 2;
 				bg_color_id[x + k] = id;
 				if (cgb) {
 					bg_priority[x + k] = (tile.2 & 0x80) != 0;
@@ -198,10 +220,12 @@ fn ppu_render_line(bus: *Bus) void = {
 					const in_col0 = (wxpos: size) % 8;
 					const map_addr = win_map_base + tile_row * 32 + tile_col;
 					const tile = ppu_bg_tile_fetch(bus, map_addr, in_row);
+					let pixels = ppu_tile_pixels(tile.0, tile.1, tile.2) >> (in_col0 * 2);
 					const run = 8 - in_col0;
 					const n = if (run < 160 - x) run else 160 - x;
 					for (let k = 0z; k < n; k += 1) {
-						const id = ppu_tile_pixel_id(tile.0, tile.1, tile.2, (in_col0 + k): u8);
+						const id = (pixels & 3): u8;
+						pixels >>= 2;
 						bg_color_id[x + k] = id;
 						if (cgb) {
 							bg_priority[x + k] = (tile.2 & 0x80) != 0;
@@ -218,15 +242,7 @@ fn ppu_render_line(bus: *Bus) void = {
 	};
 
 	if (ppu_obj_enabled(p)) {
-		ppu_render_sprites(bus, ly, &row, &row_rgb, &bg_color_id, &bg_priority);
-	};
-
-	for (let x = 0z; x < 160; x += 1) {
-		if (cgb) {
-			p.frame_rgb[(ly: size) * 160 + x] = row_rgb[x];
-		} else {
-			p.frame[(ly: size) * 160 + x] = row[x];
-		};
+		ppu_render_sprites(bus, ly, row, row_rgb, &bg_color_id, &bg_priority);
 	};
 };
 
@@ -254,8 +270,8 @@ type oam_entry = struct {
 fn ppu_render_sprites(
 	bus: *Bus,
 	ly: u8,
-	row: *[160]u8,
-	row_rgb: *[160]u32,
+	row: []u8,
+	row_rgb: []u32,
 	bg_color_id: *[160]u8,
 	bg_priority: *[160]bool,
 ) void = {

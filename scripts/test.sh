@@ -79,5 +79,8 @@ for p in $stdlib_paths; do
 	harepath="$harepath:$p"
 done
 # build.sh 同様、aarch64 環境での PIE リンクエラーを回避する。
-HAREPATH="$harepath" LDFLAGS="-no-pie" hare build -q -o "$root_dir/build/core-test" "$root_dir/tests"
+# Match the application mode so CI exercises the shipped core too.
+set --
+if [ "${HAREGIRL_BUILD_MODE:-release}" = release ]; then set -- -R; fi
+HAREPATH="$harepath" LDFLAGS="-no-pie" hare build "$@" -q -o "$root_dir/build/core-test" "$root_dir/tests"
 "$root_dir/build/core-test"

@@ -20,7 +20,18 @@ for p in $stdlib_paths; do
 	harepath="$harepath:$p"
 done
 
+# Normal builds omit Hare's runtime debugger. Keep an explicit debug mode
+# for detailed failure backtraces; release mode still checks assertions.
+case "${HAREGIRL_BUILD_MODE:-release}" in
+	release) set -- -R ;;
+	debug) set -- ;;
+	*)
+		printf '%s\n' 'HAREGIRL_BUILD_MODE must be release or debug' >&2
+		exit 1
+		;;
+esac
+
 # aarch64 環境 (Ubuntu の gcc は --enable-default-pie) では、Hare の rt が
 # 参照する glibc の environ シンボルへのアクセスが PIC 非対応のコード生成に
 # なっており、PIE としてリンクすると失敗する。-no-pie でリンクすることで回避する。
-HAREPATH="$harepath" LDFLAGS="-no-pie" hare build -o "$output_dir/haregirl" -l SDL2 "$root_dir/src/app"
+HAREPATH="$harepath" LDFLAGS="-no-pie" hare build "$@" -o "$output_dir/haregirl" -l SDL2 "$root_dir/src/app"
