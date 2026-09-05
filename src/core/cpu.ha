@@ -34,11 +34,8 @@ export fn cpu_set_de(c: *Cpu, v: u16) void = { c.d = (v >> 8): u8; c.e = v: u8; 
 export fn cpu_set_hl(c: *Cpu, v: u16) void = { c.h = (v >> 8): u8; c.l = v: u8; };
 
 export fn cpu_set_flags(c: *Cpu, z: bool, n: bool, h: bool, carry: bool) void = {
-	c.f = 0;
-	if (z) c.f |= FLAG_Z;
-	if (n) c.f |= FLAG_N;
-	if (h) c.f |= FLAG_H;
-	if (carry) c.f |= FLAG_C;
+	c.f = (if (z) FLAG_Z else 0u8) | (if (n) FLAG_N else 0u8)
+		| (if (h) FLAG_H else 0u8) | (if (carry) FLAG_C else 0u8);
 };
 export fn cpu_flag_z(c: *Cpu) bool = c.f & FLAG_Z != 0;
 export fn cpu_flag_n(c: *Cpu) bool = c.f & FLAG_N != 0;

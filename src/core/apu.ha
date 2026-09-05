@@ -5,7 +5,7 @@
 // device). Register read "OR masks" follow the standard DMG sound register
 // table (unused bits read back as 1).
 
-export const SAMPLE_RATE: u32 = 44100;
+export def SAMPLE_RATE: u32 = 44100;
 
 const DUTY_TABLE: [4][8]u8 = [
 	[0, 0, 0, 0, 0, 0, 0, 1],
@@ -135,18 +135,30 @@ fn apu_periodic_wraps(timer: *u16, period: u16, dots: u64) u64 = {
 
 fn apu_ch1_advance(a: *Apu, dots: u64) void = {
 	if (!a.ch1_enabled) return;
+	if (dots < a.ch1_timer: u64) {
+		a.ch1_timer -= dots: u16;
+		return;
+	};
 	const wraps = apu_periodic_wraps(&a.ch1_timer, apu_ch1_freq_period(a), dots);
 	a.ch1_duty_pos = (((a.ch1_duty_pos: u64) + wraps) % 8): u8;
 };
 
 fn apu_ch2_advance(a: *Apu, dots: u64) void = {
 	if (!a.ch2_enabled) return;
+	if (dots < a.ch2_timer: u64) {
+		a.ch2_timer -= dots: u16;
+		return;
+	};
 	const wraps = apu_periodic_wraps(&a.ch2_timer, apu_ch2_freq_period(a), dots);
 	a.ch2_duty_pos = (((a.ch2_duty_pos: u64) + wraps) % 8): u8;
 };
 
 fn apu_ch3_advance(a: *Apu, dots: u64) void = {
 	if (!a.ch3_enabled) return;
+	if (dots < a.ch3_timer: u64) {
+		a.ch3_timer -= dots: u16;
+		return;
+	};
 	const wraps = apu_periodic_wraps(&a.ch3_timer, apu_ch3_freq_period(a), dots);
 	a.ch3_pos = (((a.ch3_pos: u64) + wraps) % 32): u8;
 };
@@ -160,6 +172,12 @@ fn apu_ch3_advance(a: *Apu, dots: u64) void = {
 fn apu_ch4_advance(a: *Apu, dots: u64) void = {
 	if (!a.ch4_enabled) return;
 	const period = NOISE_DIVISORS[a.ch4_divisor_code] << a.ch4_clock_shift;
+	// A zero period has special legacy behavior in apu_periodic_wraps;
+	// retain it even if a previous register setting left a nonzero timer.
+	if (period != 0 && dots < a.ch4_timer: u64) {
+		a.ch4_timer -= dots: u16;
+		return;
+	};
 	const wraps = apu_periodic_wraps(&a.ch4_timer, period, dots);
 	for (let i = 0u64; i < wraps; i += 1) {
 		const bit = (a.ch4_lfsr & 1) ^ ((a.ch4_lfsr >> 1) & 1);

@@ -16,6 +16,9 @@ export type Cartridge = struct {
 	mbc: Mbc_Type,
 	battery: bool,
 	rom_bank_count: int,
+	// Derived offsets; rebuilt on bank writes and state restoration.
+	rom_base0: size,
+	rom_base1: size,
 	ram_bank_count: int,
 	ram: []u8,
 	ram_enabled: bool,
@@ -72,6 +75,7 @@ export fn cartridge_init(bus: *Bus) void = {
 	bus.cart.rom_lo = 1;
 	if (len(bus.rom) < 0x150) {
 		bus.cart.rom_bank_count = 2;
+		cart_refresh_rom_mapping(bus);
 		return;
 	};
 
@@ -94,6 +98,7 @@ export fn cartridge_init(bus: *Bus) void = {
 			bus.cart.ram_bank_count = (ram_bytes / 0x2000): int;
 		};
 	};
+	cart_refresh_rom_mapping(bus);
 };
 
 export fn cart_has_battery(bus: *Bus) bool = bus.cart.battery;
@@ -107,43 +112,33 @@ export fn cart_ram_load(bus: *Bus, data: []u8) void = {
 	for (let i = 0z; i < n; i += 1) bus.cart.ram[i] = data[i];
 };
 
-// cart_rom_bank_count は常に2の冪(2<<code、あるいはフォールバックの1)を
-// 返すため、剰余の代わりにビットマスクで折り返せる。剰余演算はROMの
-// 全バイトアクセス(オペコードフェッチ含む、毎命令複数回発生する)の
-// たびに実行されるホットパスなので、これは実測で無視できない差になる。
-fn cart_rom_byte(bus: *Bus, bank: int, off: u16) u8 = {
-	const b = bank & (bus.cart.rom_bank_count - 1);
-	const idx = (b: size) * 0x4000 + (off: size);
-	if (idx < len(bus.rom)) return bus.rom[idx];
-	return 0xFF;
+// ROM reads vastly outnumber bank writes. Resolve the controller and bank
+// mask once when its registers change, keeping reads to an offset and bound.
+fn cart_refresh_rom_mapping(bus: *Bus) void = {
+	const c = &bus.cart;
+	let bank0 = 0;
+	let bank1 = c.rom_lo: int;
+	switch (c.mbc) {
+	case Mbc_Type::None => bank1 = 1;
+	case Mbc_Type::Mbc1 =>
+		if (c.mode == 1) bank0 = (c.ram_sel: int) << 5;
+		bank1 |= (c.ram_sel: int) << 5;
+	case Mbc_Type::Mbc5 => bank1 |= (c.rom_hi: int) << 8;
+	case => void;
+	};
+	c.rom_base0 = ((bank0 & (c.rom_bank_count - 1)): size) * 0x4000;
+	c.rom_base1 = ((bank1 & (c.rom_bank_count - 1)): size) * 0x4000;
 };
 
 export fn cart_read(bus: *Bus, addr: u16) u8 = {
 	const c = &bus.cart;
-	switch (c.mbc) {
-	case Mbc_Type::None =>
-		const a = addr: size;
-		if (a < len(bus.rom)) return bus.rom[a];
-		return 0xFF;
-	case Mbc_Type::Mbc1 =>
-		if (addr < 0x4000) {
-			let bank = 0;
-			if (c.mode == 1) bank = (c.ram_sel: int) << 5;
-			return cart_rom_byte(bus, bank, addr);
-		};
-		const bank = ((c.ram_sel: int) << 5) | (c.rom_lo: int);
-		return cart_rom_byte(bus, bank, addr - 0x4000);
-	case Mbc_Type::Mbc2 =>
-		if (addr < 0x4000) return cart_rom_byte(bus, 0, addr);
-		return cart_rom_byte(bus, c.rom_lo: int, addr - 0x4000);
-	case Mbc_Type::Mbc3 =>
-		if (addr < 0x4000) return cart_rom_byte(bus, 0, addr);
-		return cart_rom_byte(bus, c.rom_lo: int, addr - 0x4000);
-	case Mbc_Type::Mbc5 =>
-		if (addr < 0x4000) return cart_rom_byte(bus, 0, addr);
-		const bank = ((c.rom_hi: int) << 8) | (c.rom_lo: int);
-		return cart_rom_byte(bus, bank, addr - 0x4000);
+	let idx = addr: size;
+	if (c.mbc != Mbc_Type::None) {
+		const base = if (addr < 0x4000) c.rom_base0 else c.rom_base1;
+		idx = base + ((addr & 0x3FFF): size);
 	};
+	if (idx < len(bus.rom)) return bus.rom[idx];
+	return 0xFF;
 };
 
 export fn cart_write(bus: *Bus, addr: u16, value: u8) void = {
@@ -200,6 +195,7 @@ export fn cart_write(bus: *Bus, addr: u16, value: u8) void = {
 			c.ram_sel = value & 0x0F;
 		};
 	};
+	cart_refresh_rom_mapping(bus);
 };
 
 fn cart_ram_bank_index(bus: *Bus, bank: int, addr: u16) (size | void) = {

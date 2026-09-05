@@ -27,6 +27,13 @@ export fn timer_tick(bus: *Bus, cycles: int) void = {
 	if (cycles <= 0) return;
 	const enabled = (bus.tac & 0x04) != 0;
 	const period = 1 << (timer_selected_bit(bus.tac) + 1);
+	// Bus accesses usually cannot reach an edge. Skip the event loop when
+	// neither TIMA nor its reload state can change in this interval.
+	if (bus.timer_reload_pending == 0 && (!enabled
+		|| cycles < period - ((bus.div_counter: int) & (period - 1)))) {
+		bus.div_counter += cycles: u16;
+		return;
+	};
 	let remaining = cycles;
 	for (remaining > 0) {
 		// Only falling DIV edges and delayed reloads can change TIMA.

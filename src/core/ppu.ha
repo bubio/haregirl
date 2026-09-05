@@ -7,15 +7,15 @@
 // while `frame_rgb` holds packed 0xRRGGBB colors and is only populated in
 // CGB mode.
 
-export const PPU_MODE_HBLANK: u8 = 0;
-export const PPU_MODE_VBLANK: u8 = 1;
-export const PPU_MODE_OAM: u8 = 2;
-export const PPU_MODE_TRANSFER: u8 = 3;
+export def PPU_MODE_HBLANK: u8 = 0;
+export def PPU_MODE_VBLANK: u8 = 1;
+export def PPU_MODE_OAM: u8 = 2;
+export def PPU_MODE_TRANSFER: u8 = 3;
 
-const DOTS_PER_LINE: u16 = 456;
-const OAM_DOTS: u16 = 80;
-const TRANSFER_DOTS: u16 = 252;
-const LINES_PER_FRAME: u8 = 154;
+def DOTS_PER_LINE: u16 = 456;
+def OAM_DOTS: u16 = 80;
+def TRANSFER_DOTS: u16 = 252;
+def LINES_PER_FRAME: u8 = 154;
 
 export type Ppu = struct {
 	mode_gb: Gb_Mode,
@@ -352,6 +352,12 @@ export fn ppu_tick(bus: *Bus, cycles: int) void = {
 			};
 		};
 		const to_boundary = next_boundary - p.dot;
+		// Almost every CPU access ends within the current PPU mode.
+		// No mode/LY/STAT work is needed until its boundary is reached.
+		if (remaining < to_boundary) {
+			p.dot += remaining;
+			return;
+		};
 		const step = if (to_boundary < remaining) to_boundary else remaining;
 		p.dot += step;
 		remaining -= step;

@@ -261,7 +261,8 @@ export fn state_load(bus: *Bus, cpu: *Cpu, data: []u8) bool = {
 
 	if (!r.ok) return false;
 	if (ram_len != len(bus.cart.ram)) return false;
-	let ram: []u8 = alloc([0...], ram_len)!;
+	let ram: []u8 = [];
+	if (ram_len > 0) ram = alloc([0...], ram_len)!;
 	get_bytes(&r, ram);
 	if (!r.ok) {
 		free(ram);
@@ -291,6 +292,7 @@ export fn state_load(bus: *Bus, cpu: *Cpu, data: []u8) bool = {
 	bus.cart.ram_enabled = cart_ram_enabled;
 	bus.cart.rom_lo = cart_rom_lo; bus.cart.rom_hi = cart_rom_hi;
 	bus.cart.ram_sel = cart_ram_sel; bus.cart.mode = cart_mode;
+	cart_refresh_rom_mapping(bus);
 	bus.cart.rtc = rtc; bus.cart.latch_prev = cart_latch_prev;
 	for (let i = 0z; i < ram_len; i += 1) bus.cart.ram[i] = ram[i];
 	free(ram);
