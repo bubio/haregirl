@@ -36,9 +36,9 @@ Hare言語で書かれた、SDL2をマルチメディア層に利用するGame B
 ## 対応プラットフォーム
 
 - Ubuntu 22.04以降（amd64 / arm64）
-- FreeBSD 14.4以降（x64、今後対応予定）
+- FreeBSD 14.4以降（x64）
 
-リリース版はGitHub Releasesでzipとして配布する予定です。
+リリース版はGitHub Releasesでzipとして配布します。
 
 ## 必要なもの
 
@@ -49,6 +49,12 @@ Ubuntuでは次のように導入できます。
 
 ```sh
 sudo apt install libsdl2-2.0-0 libsdl2-dev
+```
+
+FreeBSDでは次のパッケージを導入します。
+
+```sh
+pkg install hare-lang sdl2
 ```
 
 ## ビルド

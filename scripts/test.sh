@@ -48,10 +48,12 @@ rm -f "$rom_test_file" "$rom_test_sav"
 # printf の \xHH は POSIX 未規定(dash では解釈されずリテラル文字列になる)ため、
 # 全シェルで確実に動く8進エスケープ(\0NNN)でバイト列を組み立てる。
 head -c 32768 /dev/zero > "$rom_test_file"
-printf '\000\303\000\001' | dd of="$rom_test_file" bs=1 seek=256 conv=notrunc status=none
-printf '\003' | dd of="$rom_test_file" bs=1 seek=327 conv=notrunc status=none # 0x147: MBC1+RAM+BATTERY
-printf '\000' | dd of="$rom_test_file" bs=1 seek=328 conv=notrunc status=none # 0x148: 32KB ROM
-printf '\002' | dd of="$rom_test_file" bs=1 seek=329 conv=notrunc status=none # 0x149: 8KB RAM
+# status=none is a GNU dd extension; suppress stderr by redirection so this
+# test keeps working with FreeBSD's base-system dd too.
+printf '\000\303\000\001' | dd of="$rom_test_file" bs=1 seek=256 conv=notrunc >/dev/null 2>&1
+printf '\003' | dd of="$rom_test_file" bs=1 seek=327 conv=notrunc >/dev/null 2>&1 # 0x147: MBC1+RAM+BATTERY
+printf '\000' | dd of="$rom_test_file" bs=1 seek=328 conv=notrunc >/dev/null 2>&1 # 0x148: 32KB ROM
+printf '\002' | dd of="$rom_test_file" bs=1 seek=329 conv=notrunc >/dev/null 2>&1 # 0x149: 8KB RAM
 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy "$root_dir/build/HareGirl" --frames 3 "$rom_test_file"
 if [ ! -f "$rom_test_sav" ]; then
 	echo "ROM launch smoke test: battery save file was not created" >&2
@@ -78,9 +80,13 @@ harepath="$root_dir/src"
 for p in $stdlib_paths; do
 	harepath="$harepath:$p"
 done
-# build.sh 同様、aarch64 環境での PIE リンクエラーを回避する。
+# build.sh 同様、Linux/aarch64 環境でのみ PIE リンクエラーを回避する。
 # Match the application mode so CI exercises the shipped core too.
 set --
 if [ "${HAREGIRL_BUILD_MODE:-release}" = release ]; then set -- -R; fi
-HAREPATH="$harepath" LDFLAGS="-no-pie" hare build "$@" -q -o "$root_dir/build/core-test" "$root_dir/tests"
+link_flags=${LDFLAGS:-}
+if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
+	link_flags="$link_flags -no-pie"
+fi
+HAREPATH="$harepath" LDFLAGS="$link_flags" hare build "$@" -q -o "$root_dir/build/core-test" "$root_dir/tests"
 "$root_dir/build/core-test"

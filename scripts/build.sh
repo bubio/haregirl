@@ -31,7 +31,12 @@ case "${HAREGIRL_BUILD_MODE:-release}" in
 		;;
 esac
 
-# aarch64 環境 (Ubuntu の gcc は --enable-default-pie) では、Hare の rt が
-# 参照する glibc の environ シンボルへのアクセスが PIC 非対応のコード生成に
-# なっており、PIE としてリンクすると失敗する。-no-pie でリンクすることで回避する。
-HAREPATH="$harepath" LDFLAGS="-no-pie" hare build "$@" -o "$output_dir/HareGirl" -l SDL2 "$root_dir/src/app"
+# Linux/aarch64 の gcc は PIE を既定にする。Hare のランタイムが参照する glibc
+# の environ へは PIC 非対応のコードを生成するため、この組み合わせだけ PIE を
+# 無効にする。FreeBSD のリンカへ Linux 固有の -no-pie を渡さないことが重要。
+link_flags=${LDFLAGS:-}
+if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
+	link_flags="$link_flags -no-pie"
+fi
+
+HAREPATH="$harepath" LDFLAGS="$link_flags" hare build "$@" -o "$output_dir/HareGirl" -l SDL2 "$root_dir/src/app"

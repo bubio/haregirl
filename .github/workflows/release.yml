@@ -1,0 +1,108 @@
+name: Build release archives
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'LICENSE'
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/release.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'LICENSE'
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/release.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'release' }}
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential scdoc libsdl2-dev zip
+      - name: Build Hare toolchain
+        run: |
+          git clone --depth 1 https://github.com/omenos/mirror-qbe.git /tmp/qbe
+          make -C /tmp/qbe -j"$(nproc)"
+          sudo make -C /tmp/qbe install PREFIX=/usr/local
+          git clone --depth 1 https://git.sr.ht/~sircmpwn/harec /tmp/harec
+          cp /tmp/harec/configs/linux.mk /tmp/harec/config.mk
+          make -C /tmp/harec -j"$(nproc)"
+          sudo make -C /tmp/harec install PREFIX=/usr/local
+          git clone --depth 1 https://git.sr.ht/~sircmpwn/hare /tmp/hare
+          cp /tmp/hare/configs/linux.mk /tmp/hare/config.mk
+          make -C /tmp/hare -j"$(nproc)"
+          sudo make -C /tmp/hare install PREFIX=/usr/local
+      - name: Test and package
+        run: |
+          ./scripts/test.sh
+          ./scripts/package.sh linux ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: haregirl-linux-${{ matrix.arch }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  freebsd:
+    name: FreeBSD (amd64)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test and package in FreeBSD 14.4 VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: '14.4'
+          usesh: true
+          sync: rsync
+          prepare: pkg install -y hare-lang sdl2 zip
+          run: |
+            sh scripts/test.sh
+            sh scripts/package.sh freebsd amd64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: haregirl-freebsd-amd64
+          path: dist/*.zip
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'release'
+    needs: [linux, freebsd]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      - name: Attach archives to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" release-assets/*/*.zip --clobber
