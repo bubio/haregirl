@@ -30,6 +30,9 @@ Hare言語で書かれた、SDL2をマルチメディア層に利用するGame B
 
 互換性やパフォーマンスにはまだ改善の余地があります。市販ゲームのROMを使用する場合は、所有権と各ROMの利用条件を確認してください。
 
+![Astro Rabby on HareGirl running on Ubuntu 24.04](/docs/Screenshot1.png)
+![Astro Rabby on HareGirl running on FreeBSD](/docs/Screenshot2.png)
+
 ## 対応プラットフォーム
 
 - Ubuntu 22.04以降（amd64 / arm64）
