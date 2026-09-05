@@ -73,19 +73,17 @@ jobs:
 
   freebsd:
     name: FreeBSD (amd64)
-    # vmactions/freebsd-vm の推奨どおり、VMホストは最新のx86_64 runnerを使う。
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Test and package in FreeBSD 14.4 VM
         uses: vmactions/freebsd-vm@v1
         with:
           release: '14.4'
           usesh: true
-          # rsync同期時のSSH接続がGitHub Hosted Runner上で不安定になるため、
-          # actionがサポートするライブNFS共有を使う。
-          sync: nfs
-          prepare: pkg install -y hare-lang sdl2 zip
+          sync: rsync
+          prepare: |
+            pkg install -y hare-lang sdl2 zip
           run: |
             sh scripts/test.sh
             sh scripts/package.sh freebsd amd64
