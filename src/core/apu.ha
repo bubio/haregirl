@@ -91,6 +91,9 @@ export type Apu = struct {
 	// Resampling: fractional accumulator driving CPU_HZ -> SAMPLE_RATE
 	// decimation (Bresenham-style, exact on average).
 	sample_acc: u64,
+	wave_area: i64,
+	noise_area: i64,
+	sample_dots: u64,
 	samples: []i16,
 };
 
@@ -295,14 +298,14 @@ fn apu_ch3_amplitude(a: *Apu) i16 = {
 	if (!a.ch3_enabled || !a.ch3_dac_enabled) return 0;
 	const byte = a.wave_ram[a.ch3_pos / 2];
 	const nibble = if (a.ch3_pos % 2 == 0) (byte >> 4) else (byte & 0x0F);
-	let sample = (nibble: i16) - 8;
+	let sample = nibble: i16;
 	switch (a.ch3_volume_code) {
-	case 0 => sample = 0;
+	case 0 => return 0;
 	case 1 => void;
 	case 2 => sample >>= 1;
 	case => sample >>= 2;
 	};
-	return sample;
+	return sample * 2 - 15;
 };
 
 fn apu_ch4_amplitude(a: *Apu) i16 = {
@@ -311,13 +314,56 @@ fn apu_ch4_amplitude(a: *Apu) i16 = {
 	return if (bit == 0) (a.ch4_volume: i16) else -(a.ch4_volume: i16);
 };
 
+// Integrate the held waveform between timer edges, not on every CPU dot.
+// Sampling only its endpoint aliases fast wave/noise changes into false tones.
+fn apu_integrate_wave(a: *Apu, dots: u64) void = {
+	if (!a.ch3_enabled) return;
+	let remaining = dots;
+	for (remaining > 0) {
+		let step = if (a.ch3_timer == 0) 1u64 else a.ch3_timer: u64;
+		if (step > remaining) step = remaining;
+		a.wave_area += (apu_ch3_amplitude(a): i64) * (step: i64);
+		apu_ch3_advance(a, step);
+		remaining -= step;
+	};
+};
+
+fn apu_integrate_noise(a: *Apu, dots: u64) void = {
+	if (!a.ch4_enabled) return;
+	let remaining = dots;
+	for (remaining > 0) {
+		const period = NOISE_DIVISORS[a.ch4_divisor_code] << a.ch4_clock_shift;
+		let step = if (a.ch4_timer == 0 || period == 0) 1u64 else a.ch4_timer: u64;
+		if (step > remaining) step = remaining;
+		a.noise_area += (apu_ch4_amplitude(a): i64) * (step: i64);
+		apu_ch4_advance(a, step);
+		remaining -= step;
+	};
+};
+
+fn apu_wave_average(a: *Apu) i32 = {
+	// As in BubiBoyLite, use the full wave average above Nyquist.
+	if (a.ch3_enabled && 2 * CPU_HZ >= (SAMPLE_RATE: u64)
+		* (apu_ch3_freq_period(a): u64) * 32) {
+		const pos = a.ch3_pos;
+		let sum = 0i32;
+		for (let i = 0u8; i < 32; i += 1) {
+			a.ch3_pos = i;
+			sum += apu_ch3_amplitude(a);
+		};
+		a.ch3_pos = pos;
+		return sum * 64 / 32;
+	};
+	return (a.wave_area * 64 / (a.sample_dots: i64)): i32;
+};
+
 fn apu_mix_sample(bus: *Bus) (i16, i16) = {
 	const a = &bus.apu;
 	if (!a.enabled) return (0, 0);
-	const c1 = apu_ch1_amplitude(a);
-	const c2 = apu_ch2_amplitude(a);
-	const c3 = apu_ch3_amplitude(a);
-	const c4 = apu_ch4_amplitude(a);
+	const c1 = (apu_ch1_amplitude(a): i32) * 64;
+	const c2 = (apu_ch2_amplitude(a): i32) * 64;
+	const c3 = apu_wave_average(a);
+	const c4 = (a.noise_area * 64 / (a.sample_dots: i64)): i32;
 
 	let left = 0i32;
 	let right = 0i32;
@@ -332,15 +378,15 @@ fn apu_mix_sample(bus: *Bus) (i16, i16) = {
 
 	const left_vol = ((a.nr50 >> 4) & 0x07): i32;
 	const right_vol = (a.nr50 & 0x07): i32;
-	// Scale four -15..15 (ch3 is a narrower -8..7) channels through a 0..7
+	// Scale four -15..15 channels through a 0..7
 	// master volume into the i16 range. Worst case |left|/|right| before
 	// scaling is about 4*15=60, so at the max master volume multiplier of
 	// 8 that's up to 480; a per-step scale of 128 (480*128=61440) overflows
 	// i16 (max 32767) and wraps around, which is heard as harsh
 	// clipping/distortion at loud mixes. 64 keeps the peak (480*64=30720)
 	// safely inside i16 range while still using nearly all of it.
-	left = left * (left_vol + 1) * 64;
-	right = right * (right_vol + 1) * 64;
+	left = left * (left_vol + 1);
+	right = right * (right_vol + 1);
 	return (left: i16, right: i16);
 };
 
@@ -399,13 +445,17 @@ export fn apu_tick(bus: *Bus, cycles: int) void = {
 		};
 		apu_ch1_advance(a, step);
 		apu_ch2_advance(a, step);
-		apu_ch3_advance(a, step);
-		apu_ch4_advance(a, step);
+		apu_integrate_wave(a, step);
+		apu_integrate_noise(a, step);
+		a.sample_dots += step;
 		a.sample_acc += step * rate;
 		remaining -= step;
 		if (a.sample_acc >= CPU_HZ) {
 			a.sample_acc -= CPU_HZ;
 			const s = apu_mix_sample(bus);
+			a.wave_area = 0;
+			a.noise_area = 0;
+			a.sample_dots = 0;
 			append(bus.apu.samples, s.0)!;
 			append(bus.apu.samples, s.1)!;
 		};

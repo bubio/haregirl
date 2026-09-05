@@ -233,6 +233,9 @@ export fn main() void = {
 	test_timer();
 	test_timer_batched();
 	test_audio_buffer();
+	test_audio_pitch();
+	test_audio_antialias();
+	test_noise_average();
 	test_rom_mapping_restore();
 	test_interrupts();
 	test_serial();

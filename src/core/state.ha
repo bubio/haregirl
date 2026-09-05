@@ -8,7 +8,7 @@
 // (cart_ram_load と同じ前提)。
 
 const STATE_MAGIC: u32 = 0x47425253; // "SRBG" little-endian
-const STATE_VERSION: u32 = 1;
+const STATE_VERSION: u32 = 2;
 
 type state_buf = struct { data: []u8 };
 
@@ -152,6 +152,9 @@ export fn state_save(bus: *Bus, cpu: *Cpu) []u8 = {
 	put_u8(buf, cart.latch_prev);
 	put_u32(buf, len(cart.ram): u32);
 	put_bytes(buf, cart.ram);
+	put_u64(buf, a.wave_area: u64);
+	put_u64(buf, a.noise_area: u64);
+	put_u64(buf, a.sample_dots);
 
 	return sb.data;
 };
@@ -162,7 +165,8 @@ export fn state_save(bus: *Bus, cpu: *Cpu) []u8 = {
 export fn state_load(bus: *Bus, cpu: *Cpu, data: []u8) bool = {
 	let r = state_reader { data = data, pos = 0, ok = true };
 	if (get_u32(&r) != STATE_MAGIC) return false;
-	if (get_u32(&r) != STATE_VERSION) return false;
+	const version = get_u32(&r);
+	if (version != 1 && version != STATE_VERSION) return false;
 
 	let nc: Cpu = Cpu { ... };
 	nc.a = get_u8(&r); nc.f = get_u8(&r);
@@ -264,6 +268,11 @@ export fn state_load(bus: *Bus, cpu: *Cpu, data: []u8) bool = {
 	let ram: []u8 = [];
 	if (ram_len > 0) ram = alloc([0...], ram_len)!;
 	get_bytes(&r, ram);
+	if (version >= 2) {
+		na.wave_area = get_u64(&r): i64;
+		na.noise_area = get_u64(&r): i64;
+		na.sample_dots = get_u64(&r);
+	};
 	if (!r.ok) {
 		free(ram);
 		return false;
