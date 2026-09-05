@@ -82,7 +82,9 @@ jobs:
         with:
           release: '14.4'
           usesh: true
-          sync: rsync
+          # rsync同期時のSSH接続がGitHub Hosted Runner上で不安定になるため、
+          # actionがサポートするライブNFS共有を使う。
+          sync: nfs
           prepare: pkg install -y hare-lang sdl2 zip
           run: |
             sh scripts/test.sh
