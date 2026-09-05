@@ -73,7 +73,8 @@ jobs:
 
   freebsd:
     name: FreeBSD (amd64)
-    runs-on: ubuntu-24.04
+    # vmactions/freebsd-vm の推奨どおり、VMホストは最新のx86_64 runnerを使う。
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Test and package in FreeBSD 14.4 VM
