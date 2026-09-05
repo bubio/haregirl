@@ -54,32 +54,55 @@ fn wr(c: *Cpu, b: *Bus, i: u8, v: u8) void = {
 };
 fn rp(c: *Cpu, i: u8) u16 = { switch (i) { case 0 => return cpu_bc(c); case 1 => return cpu_de(c); case 2 => return cpu_hl(c); case => return c.sp; }; };
 fn w_rp(c: *Cpu, i: u8, v: u16) void = { switch (i) { case 0 => cpu_set_bc(c,v); case 1 => cpu_set_de(c,v); case 2 => cpu_set_hl(c,v); case => c.sp=v; }; };
-fn cond(c: *Cpu, i: u8) bool = { switch (i) { case 0 => return !cpu_flag_z(c); case 1 => return cpu_flag_z(c); case 2 => return !cpu_flag_c(c); case => return cpu_flag_c(c); }; };
+fn cond(c: *Cpu, i: u8) bool = {
+	const mask = if (i < 2) FLAG_Z else FLAG_C;
+	return ((c.f & mask) != 0) == ((i & 1) != 0);
+};
 fn pick(ok: bool, yes: u8, no: u8) u8 = { if (ok) return yes; return no; };
 fn push(c: *Cpu, b: *Bus, v: u16) void = { c.sp -= 1; bus_cpu_write8(b,c.sp,(v >> 8): u8); c.sp -= 1; bus_cpu_write8(b,c.sp,(v): u8); };
 fn pop(c: *Cpu, b: *Bus) u16 = { const lo=bus_cpu_read8(b,c.sp); c.sp+=1; const hi=bus_cpu_read8(b,c.sp); c.sp+=1; return (hi: u16)<<8|(lo: u16); };
 
 fn alu(c: *Cpu, op: u8, v: u8) void = {
-	const carry: u8 = if (cpu_flag_c(c)) 1 else 0;
 	switch (op) {
-	case 0, 1 =>
-		const ci: u8 = if (op == 1) carry else 0u8;
-		const x = (c.a: int) + (v: int) + (ci: int);
-		const h = (c.a & 15) + (v & 15) + (ci: u8) > 15;
-		c.a=(x: u8); cpu_set_flags(c,c.a==0,false,h,x>255);
-	case 2, 3 =>
-		const ci: u8 = if (op == 3) carry else 0u8;
-		const x=(c.a: int)-(v: int)-(ci: int);
-		const h = ((c.a & 15): int)-((v & 15): int)-(ci: int)<0;
-		c.a=(x: u8); cpu_set_flags(c,c.a==0,true,h,x<0);
-	case 4 => c.a &= v; cpu_set_flags(c,c.a==0,false,true,false);
-	case 5 => c.a ^= v; cpu_set_flags(c,c.a==0,false,false,false);
-	case 6 => c.a |= v; cpu_set_flags(c,c.a==0,false,false,false);
-	case => const x=(c.a: int)-(v: int); cpu_set_flags(c,(x: u8)==0,true,((c.a&15): int)-((v&15): int)<0,x<0);
+	case 0, 1, 2, 3, 7 =>
+		const left = c.a: u16;
+		const right = v: u16;
+		// Only ADC/SBC consume the incoming carry flag.
+		const ci: u16 = if (op == 1 || op == 3) ((c.f >> 4) & 1): u16 else 0;
+		const subtract = op >= 2;
+		const result = if (subtract) left - right - ci else left + right + ci;
+		// Carry out of bit 3 is bit 4 of operands XOR result; bit 8
+		// carries/borrows out of the byte. Map these to H and C directly.
+		c.f = (if ((result & 0xFF) == 0) FLAG_Z else 0u8)
+			| (if (subtract) FLAG_N else 0u8)
+			| (((left ^ right ^ result) & 0x10) << 1): u8
+			| ((result >> 4) & 0x10): u8;
+		if (op != 7) c.a = result: u8;
+	case 4 =>
+		c.a &= v;
+		c.f = FLAG_H | (if (c.a == 0) FLAG_Z else 0u8);
+	case 5 =>
+		c.a ^= v;
+		c.f = if (c.a == 0) FLAG_Z else 0u8;
+	case =>
+		c.a |= v;
+		c.f = if (c.a == 0) FLAG_Z else 0u8;
 	};
 };
-fn inc(c: *Cpu, v: u8) u8 = { const r=v+1; cpu_set_flags(c,r==0,false,(v&15)==15,cpu_flag_c(c)); return r; };
-fn dec(c: *Cpu, v: u8) u8 = { const r=v-1; cpu_set_flags(c,r==0,true,(v&15)==0,cpu_flag_c(c)); return r; };
+
+fn inc(c: *Cpu, v: u8) u8 = {
+	const r = v + 1;
+	c.f = (c.f & FLAG_C) | (if (r == 0) FLAG_Z else 0u8)
+		| (if ((v & 15) == 15) FLAG_H else 0u8);
+	return r;
+};
+
+fn dec(c: *Cpu, v: u8) u8 = {
+	const r = v - 1;
+	c.f = (c.f & FLAG_C) | FLAG_N | (if (r == 0) FLAG_Z else 0u8)
+		| (if ((v & 15) == 0) FLAG_H else 0u8);
+	return r;
+};
 fn daa(c: *Cpu) void = {
 	const n=cpu_flag_n(c); let adj:u8=0; let carry=cpu_flag_c(c);
 	if (cpu_flag_h(c) || (!n && (c.a&15)>9)) adj|=6;
@@ -115,7 +138,8 @@ fn cb(c: *Cpu, b: *Bus, op: u8) void = {
 export fn cpu_step(c: *Cpu, b: *Bus) int = {
 	const start=b.cycles;
 	if (c.ime_delay>0) { c.ime_delay-=1; if(c.ime_delay==0)c.ime=true; };
-	const pending = interrupt_pending(b);
+	// Read the pending mask here on the per-instruction hot path.
+	const pending = b.ie & b.io[0x0F] & 0x1F;
 	if (pending != 0) {
 		if (c.halted) c.halted = false;
 		if (c.ime) {

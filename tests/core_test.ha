@@ -229,6 +229,8 @@ export fn main() void = {
 	test_registers();
 	test_bus();
 	test_cpu_steps();
+	test_cpu_alu_exhaustive();
+	test_cpu_conditions();
 	test_stack_and_cb();
 	test_timer();
 	test_timer_batched();
