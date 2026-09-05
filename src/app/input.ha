@@ -1,7 +1,7 @@
 // input.ha: SDL2 のキーボードイベントを Game Boy ジョイパッド入力へ変換する
 // (フェーズ9: ゲームパッド入力のキーボード代替)。
 //
-// 割り当て: 十字キー = 矢印キー、A = Z、B = X、Start = Enter、Select = Backspace。
+// 割り当て: 十字キー = 矢印キー、A = Z、B = X、Start = Enter、Select = 右Shift。
 // Escape キーはウィンドウを閉じる操作と同様、終了要求として扱う。
 
 use core;
@@ -30,7 +30,7 @@ fn input_set_key(st: *Input_State, sc: i32, pressed: bool) void = {
 		mask = core::JOYPAD_B;
 	case sdl::SCANCODE_RETURN =>
 		mask = core::JOYPAD_START;
-	case sdl::SCANCODE_BACKSPACE =>
+	case sdl::SCANCODE_RSHIFT =>
 		mask = core::JOYPAD_SELECT;
 	case =>
 		return;

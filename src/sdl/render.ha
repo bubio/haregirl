@@ -19,6 +19,11 @@ export type texture_access = enum int {
 	TARGET = 2,
 };
 
+export type scale_mode = enum int {
+	NEAREST = 0,
+	LINEAR = 1,
+};
+
 export @symbol("SDL_CreateRenderer") fn create_renderer(
 	win: *window,
 	index: int,
@@ -36,6 +41,11 @@ export @symbol("SDL_CreateTexture") fn create_texture(
 ) nullable *texture;
 
 export @symbol("SDL_DestroyTexture") fn destroy_texture(tex: *texture) void;
+
+export @symbol("SDL_SetTextureScaleMode") fn set_texture_scale_mode(
+	tex: *texture,
+	mode: scale_mode,
+) int;
 
 export @symbol("SDL_UpdateTexture") fn update_texture(
 	tex: *texture,

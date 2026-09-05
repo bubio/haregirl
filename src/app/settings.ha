@@ -1,5 +1,5 @@
 // 設定ファイル: 置き場所はOSの習慣(XDG Base Directory)に従う。
-// $XDG_CONFIG_HOME/haregirl/config.ini (未設定時は $HOME/.config/haregirl/config.ini)
+// $XDG_CONFIG_HOME/HareGirl/config.ini (未設定時は $HOME/.config/HareGirl/config.ini)
 // に "key=value" 形式の単純なテキストとして保存する。
 
 use bufio;
@@ -15,11 +15,13 @@ export type Settings = struct {
 	scale: int,
 	// 音量(0-100)。src/app の音声出力(フェーズ9予定)が参照する想定。
 	volume: int,
+	smooth: bool,
 };
 
 export fn settings_default() Settings = Settings {
 	scale = 4,
 	volume = 100,
+	smooth = false,
 };
 
 // settings_path は設定ファイルの既定パスを返す。$HOME/$XDG_CONFIG_HOME を
@@ -37,7 +39,7 @@ export fn settings_path() (str | void) = {
 		};
 		yield fmt::asprintf("{}/.config", home)!;
 	};
-	return fmt::asprintf("{}/haregirl/config.ini", base)!;
+	return fmt::asprintf("{}/HareGirl/config.ini", base)!;
 };
 
 // settings_load は path の設定ファイルを読み込む。ファイルが存在しない、
@@ -83,7 +85,7 @@ fn settings_parse_line(s: *Settings, line: str) void = {
 	case "scale" =>
 		match (strconv::stoi(value)) {
 		case let n: int =>
-			if (n > 0) s.scale = n;
+			if (n > 0) s.scale = if (n > 8) 8 else n;
 		case => void;
 		};
 	case "volume" =>
@@ -92,6 +94,9 @@ fn settings_parse_line(s: *Settings, line: str) void = {
 			if (n >= 0 && n <= 100) s.volume = n;
 		case => void;
 		};
+	case "shader" =>
+		if (value == "smooth") s.smooth = true;
+		if (value == "nearest") s.smooth = false;
 	case => void;
 	};
 };
@@ -111,5 +116,6 @@ export fn settings_save(path: str, s: Settings) (void | fs::error) = {
 
 	const file = os::create(path, 0o644)?;
 	defer io::close(file)!;
-	fmt::fprintf(file, "scale={}\nvolume={}\n", s.scale, s.volume)!;
+	fmt::fprintf(file, "scale={}\nvolume={}\nshader={}\n", s.scale, s.volume,
+		if (s.smooth) "smooth" else "nearest")!;
 };

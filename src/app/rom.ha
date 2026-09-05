@@ -132,7 +132,7 @@ fn apply_volume(samples: []i16, volume: int) void = {
 // run_rom は rom_path のROMを実行し続ける。ウィンドウを閉じるか Escape キーで
 // 終了する。frames > 0 の場合はその数のフレーム描画後に自動終了する
 // (ヘッドレスCIでのスモークテスト用)。
-export fn run_rom(rom_path: str, scale: int, volume: int, frames: int, benchmark: bool) void = {
+export fn run_rom(rom_path: str, scale: int, volume: int, frames: int, benchmark: bool, smooth: bool) void = {
 	const file = match (os::open(rom_path)) {
 	case let f: io::file =>
 		yield f;
@@ -191,7 +191,7 @@ export fn run_rom(rom_path: str, scale: int, volume: int, frames: int, benchmark
 	defer sdl::close_audio_device(dev);
 	sdl::pause_audio_device(dev, 0);
 
-	const v = match (video_init(scale)) {
+	const v = match (video_init(scale, smooth)) {
 	case let v: video =>
 		yield v;
 	case void =>

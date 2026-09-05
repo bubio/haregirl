@@ -36,7 +36,7 @@ cd haregirl
 ./scripts/build.sh
 ```
 
-実行ファイルは `build/haregirl` に生成されます。詳細な動作確認は次のコマンドで行えます。
+実行ファイルは `build/HareGirl` に生成されます。詳細な動作確認は次のコマンドで行えます。
 
 ```sh
 ./scripts/test.sh
@@ -57,8 +57,8 @@ Usage: HareGirl [--version] [--help] [--test-screen [--frames N]] [--test-audio 
 ROMを起動するには、次のように実行します。
 
 ```sh
-./build/haregirl path/to/game.gb
-./build/haregirl path/to/game.gbc
+./build/HareGirl path/to/game.gb
+./build/HareGirl path/to/game.gbc
 ```
 
 主なオプション:

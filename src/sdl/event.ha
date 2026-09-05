@@ -7,10 +7,10 @@ export type event_type = enum u32 {
 	KEYUP = 0x301,
 };
 
-// よく使うスキャンコード(SDL_Scancode の値)。方向キーと Z/X/Enter/Backspace を
+// よく使うスキャンコード(SDL_Scancode の値)。方向キーと Z/X/Enter/右Shift を
 // それぞれ Game Boy の十字キー/A/B/Start/Select に割り当てる。
 export def SCANCODE_RETURN: i32 = 40;
-export def SCANCODE_BACKSPACE: i32 = 42;
+export def SCANCODE_RSHIFT: i32 = 229;
 export def SCANCODE_RIGHT: i32 = 79;
 export def SCANCODE_LEFT: i32 = 80;
 export def SCANCODE_DOWN: i32 = 81;

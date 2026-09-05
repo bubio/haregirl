@@ -20,7 +20,7 @@ export type video = struct {
 // レンダラー・ストリーミングテクスチャ(ARGB8888)を作成する。失敗した場合は
 // エラーメッセージを標準エラーへ出力し void を返す(呼び出し側で SDL_Init 済みかどうか
 // を気にしなくて良いよう、失敗時は途中まで確保したリソースを解放してから返す)。
-export fn video_init(scale: int) (video | void) = {
+export fn video_init(scale: int, smooth: bool) (video | void) = {
 	if (sdl::init(sdl::INIT_VIDEO) != 0) {
 		fmt::errorfln("SDL_Init に失敗しました: {}", c::tostr_unsafe(sdl::get_error()))!;
 		return;
@@ -85,6 +85,8 @@ export fn video_init(scale: int) (video | void) = {
 		sdl::quit();
 		return;
 	};
+	const scale_mode = if (smooth) sdl::scale_mode::LINEAR else sdl::scale_mode::NEAREST;
+	sdl::set_texture_scale_mode(tex, scale_mode);
 
 	return video {
 		win = win,

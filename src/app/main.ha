@@ -9,7 +9,28 @@ use strings;
 const version: str = "0.1.0";
 
 fn print_usage() void = {
-	fmt::println("Usage: HareGirl [--version] [--help] [--test-screen [--frames N]] [--test-audio [--frames N]] [--benchmark --frames N] [--config PATH] [--scale N] [--volume N] [--save-config] [--print-config] [ROM]")!;
+	fmt::println("使用法: HareGirl [options] game.gb|game.gbc")!;
+	fmt::println()!;
+	fmt::println("  -h, --help        コマンドラインの使い方を表示")!;
+	fmt::println("  -v, --version     バージョンを表示")!;
+	fmt::println("  --test-screen     テスト画面を表示して終了")!;
+	fmt::println("  --test-audio      テスト音声を再生して終了")!;
+	fmt::println("  --benchmark       ROMを指定フレーム数ベンチマーク")!;
+	fmt::println("  --frames N        テストまたはベンチマークのフレーム数")!;
+	fmt::println("  --config PATH     設定ファイルの場所を指定")!;
+	fmt::println("  --scale N         表示倍率 (1-8、9以上は8に丸める、デフォルト 4)")!;
+	fmt::println("  --shader KIND     シェーダー: nearest, smooth (デフォルト nearest)")!;
+	fmt::println("  --volume N        音量 (0-100、デフォルト 100)")!;
+	fmt::println("  --save-config     指定した設定を保存して終了")!;
+	fmt::println("  --print-config    現在の設定を表示して終了")!;
+	fmt::println()!;
+	fmt::println("キーボードショートカット(ROM実行中):")!;
+	fmt::println("  矢印キー          十字キー")!;
+	fmt::println("  Z                 A")!;
+	fmt::println("  X                 B")!;
+	fmt::println("  Enter             Start")!;
+	fmt::println("  右Shift           Select")!;
+	fmt::println("  Esc               終了")!;
 };
 
 // run_test_audio は SDL2 の音声デバイスを開き、core::Apu が生成する PCM サンプルを
@@ -75,8 +96,8 @@ fn run_test_audio(frames: int) void = {
 // frames が 0 より大きい場合はその数のフレームを描画したら自動的に終了する
 // (ヘッドレス CI でのスモークテスト用、SDL_VIDEODRIVER=dummy と組み合わせて使う)。
 // frames が 0 の場合はウィンドウを閉じる操作(SDL_QUIT)があるまで描画し続ける。
-fn run_test_screen(frames: int, scale: int) void = {
-	const v = match (video_init(scale)) {
+fn run_test_screen(frames: int, scale: int, smooth: bool) void = {
+	const v = match (video_init(scale, smooth)) {
 	case let v: video =>
 		yield v;
 	case void =>
@@ -113,6 +134,7 @@ export fn main() void = {
 	let config_path: (str | void) = void;
 	let scale_override: (int | void) = void;
 	let volume_override: (int | void) = void;
+	let shader_override: (bool | void) = void;
 	let rom_path: (str | void) = void;
 
 	for (let i = 1z; i < len(args); i += 1) {
@@ -153,10 +175,25 @@ export fn main() void = {
 			};
 			scale_override = match (strconv::stoi(args[i])) {
 			case let n: int =>
+				if (n <= 0) {
+					fmt::fatalf("invalid --scale value: {} (expected 1 or greater)", args[i]);
+				};
+				if (n > 8) yield 8;
 				yield n;
 			case =>
 				fmt::fatalf("invalid --scale value: {}", args[i]);
 			};
+		case "--shader" =>
+			i += 1;
+			if (i >= len(args)) {
+				fmt::fatal("--shader requires an argument");
+			};
+			if (args[i] == "smooth") {
+				shader_override = true;
+			} else if (args[i] != "nearest") {
+				fmt::fatalf("invalid --shader value: {} (expected nearest or smooth)", args[i]);
+			};
+			if (args[i] == "nearest") shader_override = false;
 		case "--volume" =>
 			i += 1;
 			if (i >= len(args)) {
@@ -198,6 +235,12 @@ export fn main() void = {
 	};
 
 	let settings = settings_load(path);
+	match (shader_override) {
+	case let value: bool =>
+		settings.smooth = value;
+	case void => void;
+	};
+	let smooth = settings.smooth;
 	match (scale_override) {
 	case let n: int =>
 		settings.scale = n;
@@ -223,11 +266,12 @@ export fn main() void = {
 		fmt::printfln("config: {}", path)!;
 		fmt::printfln("scale={}", settings.scale)!;
 		fmt::printfln("volume={}", settings.volume)!;
+		fmt::printfln("shader={}", if (settings.smooth) "smooth" else "nearest")!;
 		return;
 	};
 
 	if (test_screen) {
-		run_test_screen(frames, settings.scale);
+		run_test_screen(frames, settings.scale, smooth);
 		return;
 	};
 
@@ -238,7 +282,7 @@ export fn main() void = {
 
 	match (rom_path) {
 	case let p: str =>
-		run_rom(p, settings.scale, settings.volume, frames, benchmark);
+		run_rom(p, settings.scale, settings.volume, frames, benchmark, smooth);
 		return;
 	case void => void;
 	};
