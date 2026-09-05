@@ -88,5 +88,8 @@ link_flags=${LDFLAGS:-}
 if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
 	link_flags="$link_flags -no-pie"
 fi
+if [ "$(uname -s)" = FreeBSD ]; then
+	link_flags="$link_flags -L/usr/local/lib"
+fi
 HAREPATH="$harepath" LDFLAGS="$link_flags" hare build "$@" -q -o "$root_dir/build/core-test" "$root_dir/tests"
 "$root_dir/build/core-test"

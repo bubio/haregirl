@@ -38,5 +38,11 @@ link_flags=${LDFLAGS:-}
 if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
 	link_flags="$link_flags -no-pie"
 fi
+# FreeBSD packages install third-party libraries beneath /usr/local, which is
+# not in the base linker search path. SDL2 headers are found by harec, but its
+# library still needs this explicit link-time path.
+if [ "$(uname -s)" = FreeBSD ]; then
+	link_flags="$link_flags -L/usr/local/lib"
+fi
 
 HAREPATH="$harepath" LDFLAGS="$link_flags" hare build "$@" -o "$output_dir/HareGirl" -l SDL2 "$root_dir/src/app"
