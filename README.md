@@ -100,35 +100,64 @@ HAREGIRL_BUILD_MODE=debug ./scripts/build.sh
 ## 使い方
 
 ```text
-Usage: HareGirl [--version] [--help] [--test-screen [--frames N]] [--test-audio [--frames N]] [--benchmark --frames N] [--config PATH] [--scale N] [--volume N] [--save-config] [--print-config] [ROM]
+HareGirl [options] game.gb|game.gbc
 ```
 
-ROMを起動するには、次のように実行します。
+Game Boy / Game Boy Color ROMを起動するには、次のように実行します。
 
 ```sh
 ./build/HareGirl path/to/game.gb
 ./build/HareGirl path/to/game.gbc
 ```
 
-主なオプション:
+画面倍率、音量、補間方法はコマンドラインで一時的に変更できます。
+
+```sh
+./build/HareGirl --scale 3 --volume 80 --shader smooth path/to/game.gb
+```
+
+設定を保存または確認するには、次のように実行します。
+
+```sh
+./build/HareGirl --scale 3 --volume 80 --shader smooth --save-config
+./build/HareGirl --print-config
+```
+
+テスト画面・テスト音声はROMなしで起動できます。`--frames N` を指定すると、Nフレーム描画または再生した後に終了します。
+
+```sh
+./build/HareGirl --test-screen --frames 300
+./build/HareGirl --test-audio --frames 300
+```
+
+ベンチマークにはROMと正のフレーム数が必要です。
+
+```sh
+./build/HareGirl --benchmark --frames 3600 path/to/game.gb
+```
+
+オプション:
 
 | オプション | 説明 |
 |---|---|
 | `-h`, `--help` | 使い方を表示して終了 |
 | `-v`, `--version` | バージョンを表示して終了 |
-| `--scale N` | 画面の表示倍率を指定 |
-| `--volume N` | 音量を指定 |
-| `--config PATH` | 設定ファイルの場所を指定 |
-| `--shader KIND` | 拡大表示の補間方法を `nearest` または `smooth` から選択 |
-| `--save-config` | 指定した設定を保存して終了 |
-| `--print-config` | 現在の設定を表示して終了 |
-| `--benchmark --frames N` | 指定フレーム数をベンチマーク |
+| `--test-screen` | テスト画面を表示する |
+| `--test-audio` | テスト音声を再生する |
+| `--benchmark` | 指定したROMをベンチマークする。ROMと `--frames N`（N > 0）が必須 |
+| `--frames N` | テスト・ベンチマーク・ROM実行をNフレーム後に終了する |
+| `--config PATH` | 設定ファイルのパスを指定する |
+| `--scale N` | 画面の表示倍率を指定する（1〜8、既定値: 4。9以上は8） |
+| `--shader KIND` | 拡大表示の補間方法を `nearest` または `smooth` から選ぶ（既定値: `nearest`） |
+| `--volume N` | 音量を指定する（0〜100、既定値: 100） |
+| `--save-config` | 現在有効な設定を保存して終了する |
+| `--print-config` | 現在有効な設定を表示して終了する |
 
 ゲーム中の標準キーボード操作は、矢印キー（十字キー）、`Z`（A）、`X`（B）、`Enter`（Start）、右`Shift`（Select）、`Esc`（終了）です。
 
 `--help` の表示言語は実行環境のロケールに従います。`ja` 系のロケールでは日本語、その他では英語を表示します。`LC_ALL`、`LC_MESSAGES`、`LANG` の順に参照します。
 
-設定ファイルを指定しない場合は、OSの慣習に従ったユーザー設定ディレクトリに保存されます。
+設定ファイルを指定しない場合、`$XDG_CONFIG_HOME/HareGirl/config.ini`、未設定時は `$HOME/.config/HareGirl/config.ini` を使用します。
 
 ## ライセンス
 
