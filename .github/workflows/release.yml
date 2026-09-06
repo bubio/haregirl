@@ -81,19 +81,22 @@ jobs:
           - arch: amd64
             sync: rsync
             release: '14.4'
+            toolchain: package
           - arch: aarch64
             sync: rsync
             release: '14.4'
+            toolchain: source
           - arch: riscv64
             sync: scp
             # FreeBSD 14 does not publish a riscv64 pkg bootstrap.  The
             # current 15-series image provides the package infrastructure
             # needed to bootstrap Hare and SDL2 from source/packages.
             release: '15.1'
+            toolchain: source
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - name: Test and package in FreeBSD 14.4 VM
+      - name: Test and package in FreeBSD VM
         uses: vmactions/freebsd-vm@v1
         with:
           release: ${{ matrix.release }}
@@ -101,8 +104,12 @@ jobs:
           usesh: true
           sync: ${{ matrix.sync }}
           prepare: |
-            pkg install -y binutils git scdoc sdl2 zip
-            sh scripts/install-hare-toolchain.sh
+            if [ '${{ matrix.toolchain }}' = package ]; then
+              pkg install -y hare-lang sdl2 zip curl python3
+            else
+              pkg install -y binutils git scdoc sdl2 zip
+              sh scripts/install-hare-toolchain.sh
+            fi
           run: |
             sh scripts/test.sh
             sh scripts/package.sh freebsd ${{ matrix.arch }}
