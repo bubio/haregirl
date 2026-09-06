@@ -8,10 +8,10 @@ linux amd64
 linux arm64
 linux riscv64
 freebsd amd64
-freebsd arm64
+freebsd aarch64
 freebsd riscv64
 openbsd amd64
-openbsd arm64
+openbsd aarch64
 netbsd amd64
 netbsd arm64
 dragonfly amd64
@@ -19,7 +19,7 @@ EOF
 	;;
 valid)
 	case "${2:-}/${3:-}" in
-		linux/amd64|linux/arm64|linux/riscv64|freebsd/amd64|freebsd/arm64|freebsd/riscv64|openbsd/amd64|openbsd/arm64|netbsd/amd64|netbsd/arm64|dragonfly/amd64) exit 0 ;;
+		linux/amd64|linux/arm64|linux/riscv64|freebsd/amd64|freebsd/aarch64|freebsd/riscv64|openbsd/amd64|openbsd/aarch64|netbsd/amd64|netbsd/arm64|dragonfly/amd64) exit 0 ;;
 		*) exit 1 ;;
 	esac
 	;;
