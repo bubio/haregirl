@@ -21,7 +21,7 @@ export type video = struct {
 // Comment translated to English.
 // Comment translated to English.
 export fn video_init(scale: int, smooth: bool) (video | void) = {
-	if (sdl::init(sdl::INIT_VIDEO) != 0) {
+	if (sdl::init(sdl::INIT_VIDEO | sdl::INIT_GAMECONTROLLER) != 0) {
 		fmt::errorfln("SDL_Init に失敗しました: {}", c::tostr_unsafe(sdl::get_error()))!;
 		return;
 	};

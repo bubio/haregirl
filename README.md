@@ -154,7 +154,7 @@ Options:
 | `--save-config` | Save the active configuration and exit |
 | `--print-config` | Print the active configuration and exit |
 
-The default keyboard controls during gameplay are the arrow keys (D-pad), `Z` (A), `X` (B), `Enter` (Start), right `Shift` (Select), and `Esc` (quit).
+The default keyboard controls during gameplay are the arrow keys (D-pad), `Z` (A), `X` (B), `Enter` (Start), right `Shift` (Select), and `Esc` (quit). SDL2-compatible game controllers use the D-pad or left stick for directions, the right face button for A, the bottom face button for B, Start/Options for Start, and Back/Share for Select. These bindings match BubiBoy Lite.
 
 The `--help` language follows the runtime locale: Japanese for `ja` locales and English otherwise. `LC_ALL`, `LC_MESSAGES`, and `LANG` are checked in that order.
 

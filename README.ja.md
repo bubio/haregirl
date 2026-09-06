@@ -156,7 +156,7 @@ Game Boy / Game Boy Color ROMを起動するには、次のように実行しま
 | `--save-config` | 現在有効な設定を保存して終了する |
 | `--print-config` | 現在有効な設定を表示して終了する |
 
-ゲーム中の標準キーボード操作は、矢印キー（十字キー）、`Z`（A）、`X`（B）、`Enter`（Start）、右`Shift`（Select）、`Esc`（終了）です。
+ゲーム中の標準キーボード操作は、矢印キー（十字キー）、`Z`（A）、`X`（B）、`Enter`（Start）、右`Shift`（Select）、`Esc`（終了）です。SDL2対応ゲームコントローラーでは、十字キーまたは左スティック（方向）、右側フェイスボタン（A）、下側フェイスボタン（B）、Start/Options（Start）、Back/Share（Select）を使用できます。割り当てはBubiBoy Liteと同じです。
 
 `--help` の表示言語は実行環境のロケールに従います。`ja` 系のロケールでは日本語、その他では英語を表示します。`LC_ALL`、`LC_MESSAGES`、`LANG` の順に参照します。
 

@@ -8,6 +8,7 @@ use types::c;
 
 // Subsystem flags passed to SDL_Init.
 export def INIT_VIDEO: u32 = 0x00000020;
+export def INIT_GAMECONTROLLER: u32 = 0x00002000;
 
 export @symbol("SDL_Init") fn init(flags: u32) int;
 export @symbol("SDL_Quit") fn quit() void;

@@ -5,6 +5,11 @@ export type event_type = enum u32 {
 	QUIT = 0x100,
 	KEYDOWN = 0x300,
 	KEYUP = 0x301,
+	CONTROLLERAXISMOTION = 0x650,
+	CONTROLLERBUTTONDOWN = 0x651,
+	CONTROLLERBUTTONUP = 0x652,
+	CONTROLLERDEVICEADDED = 0x653,
+	CONTROLLERDEVICEREMOVED = 0x654,
 };
 
 // Common scan codes (SDL_Scancode values). Map the arrow keys and Z/X/Enter/
@@ -39,10 +44,25 @@ export type keyboard_event = struct {
 	keysym: keysym,
 };
 
+export type controller_axis_event = struct {
+	type_: u32, timestamp: u32, which: i32, axis: u8,
+	padding1: u8, padding2: u8, padding3: u8, value: i16, padding4: u16,
+};
+export type controller_button_event = struct {
+	type_: u32, timestamp: u32, which: i32, button: u8,
+	state: u8, padding1: u8, padding2: u8,
+};
+export type controller_device_event = struct {
+	type_: u32, timestamp: u32, which: i32,
+};
+
 // SDL_Event is a 56-byte C union (sizeof(SDL_Event) == 56, verified with SDL2 2.26).
 export type event = union {
 	type_: u32,
 	key: keyboard_event,
+	caxis: controller_axis_event,
+	cbutton: controller_button_event,
+	cdevice: controller_device_event,
 	pad: [56]u8,
 };
 

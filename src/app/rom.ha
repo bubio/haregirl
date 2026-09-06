@@ -214,9 +214,12 @@ export fn run_rom(rom_path: str, scale: int, volume: int, frames: int, benchmark
 	const audio_high_watermark = bytes_per_frame * 4;
 
 	let input: Input_State = Input_State { ... };
+	let controllers: Controller_Manager = Controller_Manager { ... };
+	controller_open_first(&controllers);
+	defer controller_destroy(&controllers);
 	let rendered = 0;
 	for (true) {
-		if (input_poll(&runner.bus, &input)) {
+		if (input_poll(&runner.bus, &input, &controllers)) {
 			// Comment translated to English.
 			// Comment translated to English.
 			// Comment translated to English.
