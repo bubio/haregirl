@@ -100,63 +100,93 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
-  bsd:
-    name: ${{ matrix.os }} (${{ matrix.arch }})
+  openbsd:
+    name: OpenBSD (${{ matrix.arch }})
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: openbsd
-            vm: openbsd
-            arch: amd64
+          - arch: amd64
             release: '7.8'
-          - os: openbsd
-            vm: openbsd
-            arch: aarch64
+          - arch: aarch64
             release: '7.8'
-          - os: netbsd
-            vm: netbsd
-            arch: amd64
-            release: '11'
-          - os: netbsd
-            vm: netbsd
-            arch: aarch64
-            release: '11'
-          - os: dragonfly
-            vm: dragonflybsd
-            arch: amd64
-            release: '6.4'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Test and package in BSD VM
-        uses: vmactions/${{ matrix.vm }}-vm@v1
+      - name: Test and package in OpenBSD VM
+        uses: vmactions/openbsd-vm@v1
         with:
           release: ${{ matrix.release }}
           arch: ${{ matrix.arch }}
           usesh: true
           sync: rsync
-          prepare: |
-            if command -v pkg >/dev/null 2>&1; then
-              pkg install -y hare-lang sdl2 zip curl python3 || pkg install -y hare sdl2 zip curl python3
-            elif command -v pkg_add >/dev/null 2>&1; then
-              pkg_add hare sdl2 zip curl python3
-            elif command -v pkgin >/dev/null 2>&1; then
-              pkgin -y install hare sdl2 zip curl python3
-            fi
+          prepare: pkg_add hare sdl2 zip curl python3
           run: |
             sh scripts/fetch-test-roms.sh
             HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
-            sh scripts/package.sh ${{ matrix.os }} ${{ matrix.arch }}
+            sh scripts/package.sh openbsd ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
-          name: haregirl-${{ matrix.os }}-${{ matrix.arch }}
+          name: haregirl-openbsd-${{ matrix.arch }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  netbsd:
+    name: NetBSD (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            release: '11'
+          - arch: aarch64
+            release: '11'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test and package in NetBSD VM
+        uses: vmactions/netbsd-vm@v1
+        with:
+          release: ${{ matrix.release }}
+          arch: ${{ matrix.arch }}
+          usesh: true
+          sync: rsync
+          prepare: pkgin -y install hare sdl2 zip curl python3
+          run: |
+            sh scripts/fetch-test-roms.sh
+            HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
+            sh scripts/package.sh netbsd ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: haregirl-netbsd-${{ matrix.arch }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  dragonfly:
+    name: DragonFlyBSD (amd64)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test and package in DragonFlyBSD VM
+        uses: vmactions/dragonflybsd-vm@v1
+        with:
+          release: '6.4'
+          usesh: true
+          sync: rsync
+          prepare: pkg install -y hare sdl2 zip curl python3
+          run: |
+            sh scripts/fetch-test-roms.sh
+            HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
+            sh scripts/package.sh dragonfly amd64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: haregirl-dragonfly-amd64
           path: dist/*.zip
           if-no-files-found: error
 
   publish:
     if: github.event_name == 'release'
-    needs: [linux, freebsd, bsd]
+    needs: [linux, freebsd, openbsd, netbsd, dragonfly]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
