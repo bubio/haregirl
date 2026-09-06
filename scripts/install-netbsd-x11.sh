@@ -14,6 +14,6 @@ if [ -f /usr/X11R7/lib/libXau.so.7 ]; then
 fi
 
 release=$(uname -r | sed 's/[^0-9.].*$//')
-archive=/tmp/netbsd-xbase.tgz
-ftp -o "$archive" "https://cdn.netbsd.org/pub/NetBSD/NetBSD-$release/$machine/binary/sets/xbase.tgz"
-tar -C / -xzpf "$archive"
+archive=/tmp/netbsd-xbase.tar.xz
+ftp -o "$archive" "https://cdn.netbsd.org/pub/NetBSD/NetBSD-$release/$machine/binary/sets/xbase.tar.xz"
+tar -C / -xJpf "$archive"
