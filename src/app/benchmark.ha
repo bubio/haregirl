@@ -11,13 +11,8 @@ fn run_benchmark(runner: *core::Rom_Runner, frames: int) void = {
 	let sample_count = 0u64;
 	const start = time::now(time::clock::MONOTONIC);
 	for (let frame = 0; frame < frames; frame += 1) {
-		const cycles = if (runner.bus.double_speed)
-			core::CYCLES_PER_FRAME * 2 else core::CYCLES_PER_FRAME;
-		const target = runner.bus.cycles + cycles;
-		for (runner.bus.cycles < target) {
-			core::rom_runner_step(runner);
-			if (runner.cpu.illegal_opcode) fmt::fatal("benchmark: illegal opcode");
-		};
+		core::rom_runner_run_frame(runner);
+		if (runner.cpu.illegal_opcode) fmt::fatal("benchmark: illegal opcode");
 		for (let i = 0z; i < len(runner.bus.ppu.frame); i += 1) {
 			const pixel = if (runner.bus.mode == core::Gb_Mode::Cgb)
 				runner.bus.ppu.frame_rgb[i] else runner.bus.ppu.frame[i]: u32;

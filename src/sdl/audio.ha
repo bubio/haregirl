@@ -29,3 +29,4 @@ export @symbol("SDL_CloseAudioDevice") fn close_audio_device(dev: u32) void;
 export @symbol("SDL_PauseAudioDevice") fn pause_audio_device(dev: u32, pause_on: int) void;
 export @symbol("SDL_QueueAudio") fn queue_audio(dev: u32, data: *opaque, nbytes: u32) int;
 export @symbol("SDL_GetQueuedAudioSize") fn get_queued_audio_size(dev: u32) u32;
+export @symbol("SDL_ClearQueuedAudio") fn clear_queued_audio(dev: u32) void;

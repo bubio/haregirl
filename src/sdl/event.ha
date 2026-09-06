@@ -23,6 +23,8 @@ export def SCANCODE_UP: i32 = 82;
 export def SCANCODE_Z: i32 = 29;
 export def SCANCODE_X: i32 = 27;
 export def SCANCODE_ESCAPE: i32 = 41;
+export def SCANCODE_F5: i32 = 62;
+export def SCANCODE_F7: i32 = 64;
 
 export type keysym = struct {
 	scancode: i32,

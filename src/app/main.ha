@@ -58,6 +58,8 @@ fn print_usage() void = {
 		fmt::println("  X                 B")!;
 		fmt::println("  Enter             Start")!;
 		fmt::println("  Right Shift       Select")!;
+		fmt::println("  F5                Save state")!;
+		fmt::println("  F7                Load state")!;
 		fmt::println("  Esc               Quit")!;
 		return;
 	};
@@ -82,6 +84,8 @@ fn print_usage() void = {
 	fmt::println("  X                 B")!;
 	fmt::println("  Enter             Start")!;
 	fmt::println("  右Shift           Select")!;
+	fmt::println("  F5                ステート保存")!;
+	fmt::println("  F7                ステート読込")!;
 	fmt::println("  Esc               終了")!;
 };
 

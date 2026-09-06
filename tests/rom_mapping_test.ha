@@ -38,3 +38,23 @@ fn test_rom_mapping_restore() void = {
 		check(core::bus_read(&b, 0x4000) == 0xFF, "truncated ROM remains bounds checked");
 	};
 };
+
+fn test_non_power_of_two_rom_sizes() void = {
+	const codes: [_]u8 = [0x52, 0x53, 0x54];
+	const counts: [_]size = [72, 80, 96];
+	for (let n = 0z; n < len(codes); n += 1) {
+		let rom = alloc([0u8...], counts[n] * 0x4000)!;
+		defer free(rom);
+		rom[0x147] = 0x19; // MBC5
+		rom[0x148] = codes[n];
+		for (let bank = 0z; bank < counts[n]; bank += 1)
+			rom[bank * 0x4000] = bank: u8;
+		let b = core::Bus { ... };
+		check(core::bus_load_rom(&b, rom), "special-size ROM loaded");
+		check(b.cart.rom_bank_count == counts[n]: int,
+			"special ROM size header decoded");
+		core::bus_write(&b, 0x2000, (counts[n] - 1): u8);
+		check(core::bus_read(&b, 0x4000) == (counts[n] - 1): u8,
+			"non-power-of-two final ROM bank mapped");
+	};
+};

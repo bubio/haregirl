@@ -157,6 +157,13 @@ export fn rom_runner_step(runner: *Rom_Runner) int = {
 	return cycles;
 };
 
+// Advance by one fixed-rate display frame. Tracking hardware dots in Bus keeps
+// this correct even when KEY1/STOP changes CPU speed partway through the frame.
+export fn rom_runner_run_frame(runner: *Rom_Runner) void = {
+	const target = runner.bus.dots + CYCLES_PER_FRAME;
+	for (runner.bus.dots < target) rom_runner_step(runner);
+};
+
 export fn rom_runner_run(
 	runner: *Rom_Runner,
 	options: Rom_Run_Options,

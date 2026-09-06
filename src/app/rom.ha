@@ -51,22 +51,26 @@ fn apply_apu_power_up(bus: *core::Bus) void = {
 	core::bus_write(bus, 0xFF25, 0xF3); // Comment translated to English.
 };
 
-fn save_path_for(rom_path: str) str = {
+fn sidecar_path_for(rom_path: str, suffix: str) str = {
 	const dot = match (strings::rindex(rom_path, ".")) {
 	case let i: size =>
 		yield i;
 	case void =>
-		return strings::concat(rom_path, ".sav")!;
+		return strings::concat(rom_path, suffix)!;
 	};
-	const slash = match (strings::rindex(rom_path, "/")) {
+	const basename = match (strings::rindex(rom_path, "/")) {
 	case let i: size =>
-		yield i;
+		yield i + 1;
 	case void =>
 		yield 0z;
 	};
-	if (dot < slash) return strings::concat(rom_path, ".sav")!;
-	return strings::concat(strings::sub(rom_path, 0, dot), ".sav")!;
+	// A leading dot belongs to a hidden basename rather than an extension.
+	if (dot <= basename) return strings::concat(rom_path, suffix)!;
+	return strings::concat(strings::sub(rom_path, 0, dot), suffix)!;
 };
+
+fn save_path_for(rom_path: str) str = sidecar_path_for(rom_path, ".sav");
+fn state_path_for(rom_path: str) str = sidecar_path_for(rom_path, ".state");
 
 fn load_battery_ram(bus: *core::Bus, path: str) void = {
 	if (!core::cart_has_battery(bus)) return;
@@ -98,6 +102,43 @@ fn save_battery_ram(bus: *core::Bus, path: str) void = {
 	};
 	defer io::close(file)!;
 	io::writeall(file, core::cart_ram_bytes(bus))!;
+};
+
+fn save_state_file(runner: *core::Rom_Runner, path: str) void = {
+	const state = core::state_save(&runner.bus, &runner.cpu);
+	defer free(state);
+	const file = match (os::create(path, 0o644)) {
+	case let f: io::file => yield f;
+	case fs::error =>
+		fmt::errorfln("セーブステートの保存に失敗しました: {}", path)!;
+		return;
+	};
+	defer io::close(file)!;
+	io::writeall(file, state)!;
+	fmt::printfln("セーブステートを保存しました: {}", path)!;
+};
+
+fn load_state_file(runner: *core::Rom_Runner, path: str) bool = {
+	const file = match (os::open(path)) {
+	case let f: io::file => yield f;
+	case fs::error =>
+		fmt::errorfln("セーブステートを開けません: {}", path)!;
+		return false;
+	};
+	defer io::close(file)!;
+	const data = match (io::drain(file)) {
+	case let data: []u8 => yield data;
+	case =>
+		fmt::errorfln("セーブステートの読み込みに失敗しました: {}", path)!;
+		return false;
+	};
+	defer free(data);
+	if (!core::state_load(&runner.bus, &runner.cpu, data)) {
+		fmt::errorfln("このROM用の有効なセーブステートではありません: {}", path)!;
+		return false;
+	};
+	fmt::printfln("セーブステートを読み込みました: {}", path)!;
+	return true;
 };
 
 // Comment translated to English.
@@ -165,6 +206,8 @@ export fn run_rom(rom_path: str, scale: int, volume: int, frames: int, benchmark
 
 	const save_path = save_path_for(rom_path);
 	defer free(save_path);
+	const state_path = state_path_for(rom_path);
+	defer free(state_path);
 	load_battery_ram(&runner.bus, save_path);
 
 	if (sdl::init(sdl::INIT_AUDIO) != 0) {
@@ -229,13 +272,12 @@ export fn run_rom(rom_path: str, scale: int, volume: int, frames: int, benchmark
 			sdl::pause_audio_device(dev, 1);
 			break;
 		};
-
-		const frame_cycles = if (runner.bus.double_speed)
-			core::CYCLES_PER_FRAME * 2 else core::CYCLES_PER_FRAME;
-		const target = runner.bus.cycles + frame_cycles;
-		for (runner.bus.cycles < target) {
-			core::rom_runner_step(&runner);
+		if (input.save_state_requested) save_state_file(&runner, state_path);
+		if (input.load_state_requested && load_state_file(&runner, state_path)) {
+			sdl::clear_queued_audio(dev);
 		};
+
+		core::rom_runner_run_frame(&runner);
 
 		frame_to_argb(&runner.bus, fb);
 		video_present(&v, fb);

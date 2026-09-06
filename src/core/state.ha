@@ -8,7 +8,7 @@
 // bus_load_rom, just like cart_ram_load.
 
 const STATE_MAGIC: u32 = 0x47425253; // "SRBG" little-endian
-const STATE_VERSION: u32 = 2;
+const STATE_VERSION: u32 = 3;
 
 type state_buf = struct { data: []u8 };
 
@@ -52,12 +52,24 @@ fn get_u32_array(r: *state_reader, out: []u32) void = {
 	for (let i = 0z; i < len(out); i += 1) out[i] = get_u32(r);
 };
 
+// A compact whole-ROM identity prevents a structurally compatible save state
+// from being restored into a different game. This is an identity check rather
+// than a cryptographic integrity mechanism.
+fn state_rom_fingerprint(rom: []u8) u64 = {
+	let hash = 14695981039346656037u64;
+	for (let i = 0z; i < len(rom); i += 1) {
+		hash = (hash ^ (rom[i]: u64)) * 1099511628211u64;
+	};
+	return hash;
+};
+
 // state_save serializes the Bus/Cpu execution state into a byte sequence.
 export fn state_save(bus: *Bus, cpu: *Cpu) []u8 = {
 	let sb = state_buf { data = [] };
 	const buf = &sb;
 	put_u32(buf, STATE_MAGIC);
 	put_u32(buf, STATE_VERSION);
+	put_u64(buf, state_rom_fingerprint(bus.rom));
 
 	// CPU
 	put_u8(buf, cpu.a); put_u8(buf, cpu.f);
@@ -155,6 +167,7 @@ export fn state_save(bus: *Bus, cpu: *Cpu) []u8 = {
 	put_u64(buf, a.wave_area: u64);
 	put_u64(buf, a.noise_area: u64);
 	put_u64(buf, a.sample_dots);
+	put_u64(buf, bus.dots);
 
 	return sb.data;
 };
@@ -166,7 +179,11 @@ export fn state_load(bus: *Bus, cpu: *Cpu, data: []u8) bool = {
 	let r = state_reader { data = data, pos = 0, ok = true };
 	if (get_u32(&r) != STATE_MAGIC) return false;
 	const version = get_u32(&r);
-	if (version != 1 && version != STATE_VERSION) return false;
+	if (version < 1 || version > STATE_VERSION) return false;
+	if (version >= 3) {
+		const fingerprint = get_u64(&r);
+		if (!r.ok || fingerprint != state_rom_fingerprint(bus.rom)) return false;
+	};
 
 	let nc: Cpu = Cpu { ... };
 	nc.a = get_u8(&r); nc.f = get_u8(&r);
@@ -273,6 +290,8 @@ export fn state_load(bus: *Bus, cpu: *Cpu, data: []u8) bool = {
 		na.noise_area = get_u64(&r): i64;
 		na.sample_dots = get_u64(&r);
 	};
+	const dots = if (version >= 3) get_u64(&r)
+		else if (double_speed) cycles / 2 else cycles;
 	if (!r.ok) {
 		free(ram);
 		return false;
@@ -287,7 +306,7 @@ export fn state_load(bus: *Bus, cpu: *Cpu, data: []u8) bool = {
 	bus.vram = vram; bus.vram_bank = vram_bank;
 	bus.wram = wram; bus.wram_bank = wram_bank;
 	bus.oam = oam; bus.hram = hram; bus.io = io;
-	bus.ie = ie; bus.cycles = cycles; bus.div_counter = div_counter;
+	bus.ie = ie; bus.cycles = cycles; bus.dots = dots; bus.div_counter = div_counter;
 	bus.tima = tima; bus.tma = tma; bus.tac = tac;
 	bus.timer_reload_pending = timer_reload_pending;
 	bus.timer_reload_just_happened = timer_reload_just_happened;

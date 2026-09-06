@@ -85,9 +85,13 @@ fn test_audio_antialias() void = {
 	defer free(r);
 	check(len(a) == len(r), "restored filtered PCM length");
 	for (let i = 0z; i < len(a); i += 1) check(a[i] == r[i], "restored filtered PCM samples");
-	// Version 1 has the same prefix and no filter accumulator suffix.
-	saved[4] = 1;
-	check(core::state_load(&restored, &c, saved[..len(saved) - 24]), "version 1 states remain readable");
+	// Version 1 has neither the version-3 ROM fingerprint nor the filter/dot suffixes.
+	let old = alloc([0u8...], len(saved) - 40)!;
+	defer free(old);
+	for (let i = 0z; i < 8; i += 1) old[i] = saved[i];
+	old[4] = 1;
+	for (let i = 16z; i < len(saved) - 32; i += 1) old[i - 8] = saved[i];
+	check(core::state_load(&restored, &c, old), "version 1 states remain readable");
 };
 
 // Measure output pitch rather than just checking frequency registers. The

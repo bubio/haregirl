@@ -1,4 +1,5 @@
 use fs;
+use fmt;
 use io;
 use os;
 use core;
@@ -8,6 +9,12 @@ export fn load_rom_file(path: str) ([]u8 | void) = {
 	case let file: io::file =>
 		yield file;
 	case =>
+		match (os::getenv("HAREGIRL_REQUIRE_TEST_ROMS")) {
+		case let required: str =>
+			if (len(required) > 0)
+				fmt::fatalf("required test ROM is missing: {}", path);
+		case void => void;
+		};
 		return;
 	};
 	defer io::close(file)!;

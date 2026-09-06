@@ -27,7 +27,7 @@ The emulation core is based on [BubiBoy Lite](https://github.com/bubio/BubiBoyLi
 
 ## Status
 
-This is an experimental project under active development. It currently implements the CPU, PPU, APU, timer, interrupts, joypad, serial, cartridges (including MBC1/2/3/5), basic DMG/CGB emulation, battery-backed RAM, configuration files, and video/audio output through SDL2.
+This is an experimental project under active development. It currently implements the CPU, PPU, APU, timer, interrupts, joypad, serial, cartridges (including MBC1/2/3/5), basic DMG/CGB emulation, battery-backed RAM, save states, configuration files, and video/audio output through SDL2.
 
 Compatibility and performance still have room for improvement. If you use commercial game ROMs, verify that you own them and comply with the terms applicable to each ROM.
 
@@ -117,7 +117,7 @@ Options:
 | `--save-config` | Save the active configuration and exit |
 | `--print-config` | Print the active configuration and exit |
 
-The default keyboard controls during gameplay are the arrow keys (D-pad), `Z` (A), `X` (B), `Enter` (Start), right `Shift` (Select), and `Esc` (quit). SDL2-compatible game controllers use the D-pad or left stick for directions, the right face button for A, the bottom face button for B, Start/Options for Start, and Back/Share for Select. These bindings match BubiBoy Lite.
+The default keyboard controls during gameplay are the arrow keys (D-pad), `Z` (A), `X` (B), `Enter` (Start), right `Shift` (Select), `F5` (save state), `F7` (load state), and `Esc` (quit). Save states are stored beside the ROM with a `.state` extension and are rejected when they belong to a different ROM. SDL2-compatible game controllers use the D-pad or left stick for directions, the right face button for A, the bottom face button for B, Start/Options for Start, and Back/Share for Select. These bindings match BubiBoy Lite.
 
 The `--help` language follows the runtime locale: Japanese for `ja` locales and English otherwise. `LC_ALL`, `LC_MESSAGES`, and `LANG` are checked in that order.
 

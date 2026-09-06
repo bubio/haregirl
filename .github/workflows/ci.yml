@@ -45,5 +45,8 @@ jobs:
           make -C /tmp/hare -j"$(nproc)"
           sudo make -C /tmp/hare install PREFIX="$HARE_PREFIX"
 
-      - name: Build and smoke test
-        run: ./scripts/test.sh
+      - name: Fetch conformance test ROMs
+        run: ./scripts/fetch-test-roms.sh
+
+      - name: Build and test
+        run: HAREGIRL_REQUIRE_TEST_ROMS=1 ./scripts/test.sh

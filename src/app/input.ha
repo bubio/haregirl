@@ -9,6 +9,8 @@ export type Input_State = struct {
 	pad_dpad: u8,
 	pad_buttons: u8,
 	axis_dpad: u8,
+	save_state_requested: bool,
+	load_state_requested: bool,
 };
 
 export type Controller_Manager = struct {
@@ -107,6 +109,8 @@ fn controller_removed(mgr: *Controller_Manager, st: *Input_State, instance_id: i
 };
 
 export fn input_poll(bus: *core::Bus, st: *Input_State, mgr: *Controller_Manager) bool = {
+	st.save_state_requested = false;
+	st.load_state_requested = false;
 	let ev = sdl::event { pad = [0...] };
 	let quit = false;
 	for (sdl::poll_event(&ev) != 0) {
@@ -114,6 +118,10 @@ export fn input_poll(bus: *core::Bus, st: *Input_State, mgr: *Controller_Manager
 		case sdl::event_type::QUIT: u32 => quit = true;
 		case sdl::event_type::KEYDOWN: u32 =>
 			if (ev.key.keysym.scancode == sdl::SCANCODE_ESCAPE) quit = true;
+			if (ev.key.repeat == 0 && ev.key.keysym.scancode == sdl::SCANCODE_F5)
+				st.save_state_requested = true;
+			if (ev.key.repeat == 0 && ev.key.keysym.scancode == sdl::SCANCODE_F7)
+				st.load_state_requested = true;
 			input_set_key(st, ev.key.keysym.scancode, true);
 		case sdl::event_type::KEYUP: u32 => input_set_key(st, ev.key.keysym.scancode, false);
 		case sdl::event_type::CONTROLLERDEVICEADDED: u32 =>

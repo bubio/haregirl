@@ -32,8 +32,10 @@ export type Cartridge = struct {
 
 fn cart_type_info(code: u8) (Mbc_Type, bool) = {
 	switch (code) {
-	case 0x00, 0x08, 0x09 =>
+	case 0x00, 0x08 =>
 		return (Mbc_Type::None, false);
+	case 0x09 =>
+		return (Mbc_Type::None, true);
 	case 0x01, 0x02 =>
 		return (Mbc_Type::Mbc1, false);
 	case 0x03 =>
@@ -56,6 +58,12 @@ fn cart_type_info(code: u8) (Mbc_Type, bool) = {
 };
 
 fn cart_rom_bank_count(code: u8) int = {
+	switch (code) {
+	case 0x52 => return 72;
+	case 0x53 => return 80;
+	case 0x54 => return 96;
+	case => void;
+	};
 	if (code > 8) return 2;
 	return 2 << (code: int);
 };
@@ -126,8 +134,8 @@ fn cart_refresh_rom_mapping(bus: *Bus) void = {
 	case Mbc_Type::Mbc5 => bank1 |= (c.rom_hi: int) << 8;
 	case => void;
 	};
-	c.rom_base0 = ((bank0 & (c.rom_bank_count - 1)): size) * 0x4000;
-	c.rom_base1 = ((bank1 & (c.rom_bank_count - 1)): size) * 0x4000;
+	c.rom_base0 = ((bank0 % c.rom_bank_count): size) * 0x4000;
+	c.rom_base1 = ((bank1 % c.rom_bank_count): size) * 0x4000;
 };
 
 export fn cart_read(bus: *Bus, addr: u16) u8 = {
@@ -224,7 +232,13 @@ fn cart_ram_bank(c: *Cartridge) int = {
 
 export fn cart_ram_read(bus: *Bus, addr: u16) u8 = {
 	const c = &bus.cart;
-	if (!c.ram_enabled || c.mbc == Mbc_Type::None) return 0xFF;
+	if (c.mbc == Mbc_Type::None) {
+		match (cart_ram_bank_index(bus, 0, addr)) {
+		case let idx: size => return c.ram[idx];
+		case void => return 0xFF;
+		};
+	};
+	if (!c.ram_enabled) return 0xFF;
 	if (c.mbc == Mbc_Type::Mbc2) {
 		const idx = (addr & 0x01FF): size;
 		if (idx >= len(c.ram)) return 0xFF;
@@ -243,7 +257,14 @@ export fn cart_ram_read(bus: *Bus, addr: u16) u8 = {
 
 export fn cart_ram_write(bus: *Bus, addr: u16, value: u8) void = {
 	const c = &bus.cart;
-	if (!c.ram_enabled || c.mbc == Mbc_Type::None) return;
+	if (c.mbc == Mbc_Type::None) {
+		match (cart_ram_bank_index(bus, 0, addr)) {
+		case let idx: size => c.ram[idx] = value;
+		case void => void;
+		};
+		return;
+	};
+	if (!c.ram_enabled) return;
 	if (c.mbc == Mbc_Type::Mbc2) {
 		const idx = (addr & 0x01FF): size;
 		if (idx < len(c.ram)) c.ram[idx] = value & 0x0F;

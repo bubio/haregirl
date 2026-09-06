@@ -209,6 +209,27 @@ fn test_save_state() void = {
 	let untouched_cpu: core::Cpu = core::Cpu { ... };
 	check(!core::state_load(&untouched, &untouched_cpu, garbage[..]),
 		"state_load rejects invalid data");
+
+	let other_rom = rom;
+	other_rom[0x100] = 0x76;
+	let other_bus: core::Bus = core::Bus { ... };
+	check(core::bus_load_rom(&other_bus, other_rom[..]), "different ROM loaded");
+	let other_cpu: core::Cpu = core::Cpu { ... };
+	check(!core::state_load(&other_bus, &other_cpu, snapshot),
+		"state_load rejects a snapshot from another ROM");
+};
+
+fn test_rom_only_ram() void = {
+	let rom: [0x150]u8 = [0...];
+	rom[0x147] = 0x09; // ROM+RAM+BATTERY, without an MBC
+	rom[0x149] = 0x02; // 8KB RAM
+	let b: core::Bus = core::Bus { ... };
+	check(core::bus_load_rom(&b, rom[..]), "ROM+RAM cartridge loaded");
+	defer free(b.cart.ram);
+	check(core::cart_has_battery(&b), "ROM+RAM+BATTERY reports its battery");
+	core::bus_write(&b, 0xA123, 0x5A);
+	check(core::bus_read(&b, 0xA123) == 0x5A,
+		"ROM without MBC can access external RAM");
 };
 
 fn test_joypad() void = {
@@ -219,10 +240,36 @@ fn test_joypad() void = {
 	check((core::bus_read(&b, 0xFF00) & 0x01) == 0, "A press pulls P10 low when buttons row selected");
 	check((core::bus_read(&b, 0xFF0F) & core::INT_JOYPAD) != 0, "joypad interrupt requested on press");
 	core::bus_write(&b, 0xFF0F, 0);
+	core::joypad_set_buttons(&b, core::JOYPAD_A);
+	check((core::bus_read(&b, 0xFF0F) & core::INT_JOYPAD) == 0,
+		"held button does not repeatedly request joypad interrupts");
 	core::bus_write(&b, 0xFF00, 0x20); // select dpad row instead
 	check((core::bus_read(&b, 0xFF00) & 0x01) != 0, "buttons row no longer visible once deselected");
 	core::joypad_set_dpad(&b, core::JOYPAD_DOWN);
 	check((core::bus_read(&b, 0xFF00) & 0x08) == 0, "Down press pulls P13 low when dpad row selected");
+	core::bus_write(&b, 0xFF0F, 0);
+	core::joypad_set_dpad(&b, core::JOYPAD_DOWN);
+	check((core::bus_read(&b, 0xFF0F) & core::INT_JOYPAD) == 0,
+		"held direction does not repeatedly request joypad interrupts");
+};
+
+fn test_frame_across_speed_switch() void = {
+	let rom: [0x150]u8 = [0...];
+	let pc = 0x100z;
+	rom[pc] = 0x3E; pc += 1; rom[pc] = 1; pc += 1; // LD A,1
+	rom[pc] = 0xE0; pc += 1; rom[pc] = 0x4D; pc += 1; // LDH (KEY1),A
+	rom[pc] = 0x10; pc += 1; rom[pc] = 0; pc += 1; // STOP 0
+	rom[pc] = 0x18; pc += 1; rom[pc] = 0xFE; // JR -2
+	let runner: core::Rom_Runner = core::Rom_Runner { ... };
+	check(core::rom_runner_init(&runner, rom[..], core::Gb_Mode::Cgb),
+		"speed-switch frame ROM loaded");
+	core::rom_runner_run_frame(&runner);
+	check(runner.bus.double_speed, "frame crossed into double speed");
+	check(runner.bus.dots >= core::CYCLES_PER_FRAME
+		&& runner.bus.dots < core::CYCLES_PER_FRAME + 4,
+		"frame scheduler advances one fixed-rate display frame");
+	check(runner.bus.cycles > core::CYCLES_PER_FRAME,
+		"double-speed portion consumes additional CPU cycles");
 };
 
 export fn main() void = {
@@ -240,11 +287,14 @@ export fn main() void = {
 	test_noise_average();
 	test_audio_spans();
 	test_rom_mapping_restore();
+	test_non_power_of_two_rom_sizes();
 	test_interrupts();
 	test_serial();
 	test_cgb_extensions();
 	test_save_state();
+	test_rom_only_ram();
 	test_joypad();
+	test_frame_across_speed_switch();
 	test_rom_runner();
 	test_blargg_runner();
 	test_blargg_roms();

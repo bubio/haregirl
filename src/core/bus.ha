@@ -13,6 +13,9 @@ export type Bus = struct {
 	io: [128]u8,
 	ie: u8,
 	cycles: u64,
+	// Fixed-rate PPU/APU dots elapsed. Unlike cycles, this is not doubled by
+	// CGB double-speed mode and is therefore suitable for frame scheduling.
+	dots: u64,
 	div_counter: u16,
 	tima: u8,
 	tma: u8,
@@ -54,6 +57,7 @@ export fn bus_tick(bus: *Bus, cycles: int) void = {
 		// reported cycle count while double speed is active. The APU
 		// derives its own real-rate dot count internally (see apu_tick).
 		const dots = if (bus.double_speed) cycles / 2 else cycles;
+		bus.dots += dots: u64;
 		ppu_tick(bus, dots);
 		apu_tick(bus, cycles);
 	};
