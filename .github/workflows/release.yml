@@ -193,8 +193,10 @@ jobs:
             pkg install -y binutils git scdoc sdl2 zip
             HARE_REF=0.26.0 HAREC_REF=0.26.0 sh scripts/install-hare-toolchain.sh
           run: |
-            sh scripts/test.sh
-            sh scripts/package.sh dragonfly amd64
+            # Hare's DragonFly runtime passes a GNU ld script; force GNU bfd
+            # rather than the system default gold linker, which rejects it.
+            LDFLAGS="-fuse-ld=bfd" sh scripts/test.sh
+            LDFLAGS="-fuse-ld=bfd" sh scripts/package.sh dragonfly amd64
       - uses: actions/upload-artifact@v4
         with:
           name: haregirl-dragonfly-amd64
