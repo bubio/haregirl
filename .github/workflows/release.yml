@@ -95,10 +95,10 @@ jobs:
           usesh: true
           sync: ${{ matrix.sync }}
           prepare: |
-            pkg install -y hare-lang sdl2 zip curl python3
+            pkg install -y git sdl2 zip
+            sh scripts/install-hare-toolchain.sh
           run: |
-            sh scripts/fetch-test-roms.sh
-            HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
+            sh scripts/test.sh
             sh scripts/package.sh freebsd ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
@@ -127,11 +127,11 @@ jobs:
           usesh: true
           sync: rsync
           prepare: |
-            pkg_add hare sdl2 zip curl python-3
+            pkg_add git sdl2 zip
             echo 'export LDFLAGS="${LDFLAGS:-} -L/usr/local/lib"' >> "$HOME/.profile"
+            sh scripts/install-hare-toolchain.sh
           run: |
-            sh scripts/fetch-test-roms.sh
-            LDFLAGS="-L/usr/local/lib" HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
+            LDFLAGS="-L/usr/local/lib" sh scripts/test.sh
             LDFLAGS="-L/usr/local/lib" sh scripts/package.sh openbsd ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
@@ -160,10 +160,10 @@ jobs:
           usesh: true
           sync: rsync
           prepare: |
-            pkg_add hare sdl2 zip curl python
+            pkg_add git SDL2 zip
+            sh scripts/install-hare-toolchain.sh
           run: |
-            sh scripts/fetch-test-roms.sh
-            HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
+            sh scripts/test.sh
             sh scripts/package.sh netbsd ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
@@ -182,10 +182,11 @@ jobs:
           release: '6.4'
           usesh: true
           sync: rsync
-          prepare: pkg install -y hare sdl2 zip curl python
+          prepare: |
+            pkg install -y git sdl2 zip
+            sh scripts/install-hare-toolchain.sh
           run: |
-            sh scripts/fetch-test-roms.sh
-            HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
+            sh scripts/test.sh
             sh scripts/package.sh dragonfly amd64
       - uses: actions/upload-artifact@v4
         with:
