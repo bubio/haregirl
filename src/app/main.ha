@@ -11,22 +11,29 @@ const version: str = "0.1.0";
 // POSIXロケールの優先順位に従う。ja/ja_JP/ja_JP.UTF-8 のときだけ日本語を使い、
 // ロケールが未設定またはその他の言語なら英語を既定にする。
 fn help_is_japanese() bool = {
-	for (let name = 0z; name < 3; name += 1) {
-		const variable = match (name) {
-		case 0 => "LC_ALL";
-		case 1 => "LC_MESSAGES";
-		case => "LANG";
-		};
-		const locale = match (os::getenv(variable)) {
+	const lc_all = match (os::getenv("LC_ALL")) {
 		case let value: str => yield value;
-		case void => continue;
+		case void => "";
 		};
-		if (len(locale) == 0) continue;
-		return strings::hasprefix(locale, "ja")
-			|| strings::hasprefix(locale, "JA");
+	if (len(lc_all) > 0) return locale_is_japanese(lc_all);
+
+	const lc_messages = match (os::getenv("LC_MESSAGES")) {
+	case let value: str => yield value;
+	case void => "";
 	};
+	if (len(lc_messages) > 0) return locale_is_japanese(lc_messages);
+
+	const lang = match (os::getenv("LANG")) {
+	case let value: str => yield value;
+	case void => "";
+	};
+	if (len(lang) > 0) return locale_is_japanese(lang);
+
 	return false;
 };
+
+fn locale_is_japanese(locale: str) bool =
+	strings::hasprefix(locale, "ja") || strings::hasprefix(locale, "JA");
 
 fn print_usage() void = {
 	if (!help_is_japanese()) {
