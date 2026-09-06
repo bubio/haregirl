@@ -38,20 +38,40 @@ Hare言語で書かれた、SDL2をマルチメディア層に利用するGame B
 - Ubuntu 22.04以降（amd64 / arm64）
 - FreeBSD 14.4以降（x64）
 
-リリース版はGitHub Releasesでzipとして配布します。
+GitHub Releasesでは、次のネイティブ実行ファイルを含むzipを配布します。
 
-## 必要なもの
+| 対象 | 配布ファイル |
+|---|---|
+| Linux amd64 | `HareGirl-<version>-linux-amd64.zip` |
+| Linux arm64 | `HareGirl-<version>-linux-arm64.zip` |
+| FreeBSD amd64 | `HareGirl-<version>-freebsd-amd64.zip` |
+
+各zipには `HareGirl` と `LICENSE` が含まれます。実行時にはシステムのSDL2が必要です。
+
+Ubuntuでは次のように導入します。
+
+```sh
+sudo apt install libsdl2-2.0-0
+```
+
+FreeBSDでは次のように導入します。
+
+```sh
+pkg install sdl2
+```
+
+## ソースからビルドする場合
 
 - [Hare](https://harelang.org/)
 - SDL2（実行時ライブラリおよびビルド用ヘッダー）
 
-Ubuntuでは次のように導入できます。
+Ubuntuではビルド用ヘッダーも導入します。
 
 ```sh
 sudo apt install libsdl2-2.0-0 libsdl2-dev
 ```
 
-FreeBSDでは次のパッケージを導入します。
+FreeBSDではHareツールチェーンを含むパッケージを導入します。
 
 ```sh
 pkg install hare-lang sdl2
@@ -99,11 +119,12 @@ ROMを起動するには、次のように実行します。
 | `--scale N` | 画面の表示倍率を指定 |
 | `--volume N` | 音量を指定 |
 | `--config PATH` | 設定ファイルの場所を指定 |
+| `--shader KIND` | 拡大表示の補間方法を `nearest` または `smooth` から選択 |
 | `--save-config` | 指定した設定を保存して終了 |
 | `--print-config` | 現在の設定を表示して終了 |
 | `--benchmark --frames N` | 指定フレーム数をベンチマーク |
 
-ゲーム中の標準キーボード操作は、矢印キー（十字キー）、`Z` / `X`（B / A）、`Enter`（Start）、右`Shift`（Select）、`Esc`（終了）です。
+ゲーム中の標準キーボード操作は、矢印キー（十字キー）、`Z`（A）、`X`（B）、`Enter`（Start）、右`Shift`（Select）、`Esc`（終了）です。
 
 設定ファイルを指定しない場合は、OSの慣習に従ったユーザー設定ディレクトリに保存されます。
 
