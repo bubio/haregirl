@@ -61,43 +61,6 @@ On FreeBSD:
 pkg install sdl2
 ```
 
-## Building from source
-
-- [Hare](https://harelang.org/)
-- SDL2 (runtime library and development headers)
-
-On Ubuntu, install the development headers as well:
-
-```sh
-sudo apt install libsdl2-2.0-0 libsdl2-dev
-```
-
-On FreeBSD, install the package containing the Hare toolchain:
-
-```sh
-pkg install hare-lang sdl2
-```
-
-## Build
-
-```sh
-git clone https://github.com/bubio/haregirl.git
-cd haregirl
-./scripts/build.sh
-```
-
-The executable is generated at `build/HareGirl`. Run the test suite with:
-
-```sh
-./scripts/test.sh
-```
-
-Select a debug build with:
-
-```sh
-HAREGIRL_BUILD_MODE=debug ./scripts/build.sh
-```
-
 ## Usage
 
 ```text
@@ -159,6 +122,43 @@ The default keyboard controls during gameplay are the arrow keys (D-pad), `Z` (A
 The `--help` language follows the runtime locale: Japanese for `ja` locales and English otherwise. `LC_ALL`, `LC_MESSAGES`, and `LANG` are checked in that order.
 
 Unless a configuration path is specified, HareGirl uses `$XDG_CONFIG_HOME/HareGirl/config.ini`, or `$HOME/.config/HareGirl/config.ini` when `XDG_CONFIG_HOME` is unset.
+
+## Building from source
+
+- [Hare](https://harelang.org/)
+- SDL2 (runtime library and development headers)
+
+On Ubuntu, install the development headers as well:
+
+```sh
+sudo apt install libsdl2-2.0-0 libsdl2-dev
+```
+
+On FreeBSD, install the package containing the Hare toolchain:
+
+```sh
+pkg install hare-lang sdl2
+```
+
+## Build
+
+```sh
+git clone https://github.com/bubio/haregirl.git
+cd haregirl
+./scripts/build.sh
+```
+
+The executable is generated at `build/HareGirl`. Run the test suite with:
+
+```sh
+./scripts/test.sh
+```
+
+Select a debug build with:
+
+```sh
+HAREGIRL_BUILD_MODE=debug ./scripts/build.sh
+```
 
 ## License
 

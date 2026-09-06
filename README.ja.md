@@ -63,43 +63,6 @@ FreeBSDでは次のように導入します。
 pkg install sdl2
 ```
 
-## ソースからビルドする場合
-
-- [Hare](https://harelang.org/)
-- SDL2（実行時ライブラリおよびビルド用ヘッダー）
-
-Ubuntuではビルド用ヘッダーも導入します。
-
-```sh
-sudo apt install libsdl2-2.0-0 libsdl2-dev
-```
-
-FreeBSDではHareツールチェーンを含むパッケージを導入します。
-
-```sh
-pkg install hare-lang sdl2
-```
-
-## ビルド
-
-```sh
-git clone https://github.com/bubio/haregirl.git
-cd haregirl
-./scripts/build.sh
-```
-
-実行ファイルは `build/HareGirl` に生成されます。詳細な動作確認は次のコマンドで行えます。
-
-```sh
-./scripts/test.sh
-```
-
-デバッグ用ビルドは環境変数で切り替えられます。
-
-```sh
-HAREGIRL_BUILD_MODE=debug ./scripts/build.sh
-```
-
 ## 使い方
 
 ```text
@@ -161,6 +124,43 @@ Game Boy / Game Boy Color ROMを起動するには、次のように実行しま
 `--help` の表示言語は実行環境のロケールに従います。`ja` 系のロケールでは日本語、その他では英語を表示します。`LC_ALL`、`LC_MESSAGES`、`LANG` の順に参照します。
 
 設定ファイルを指定しない場合、`$XDG_CONFIG_HOME/HareGirl/config.ini`、未設定時は `$HOME/.config/HareGirl/config.ini` を使用します。
+
+## ソースからビルドする場合
+
+- [Hare](https://harelang.org/)
+- SDL2（実行時ライブラリおよびビルド用ヘッダー）
+
+Ubuntuではビルド用ヘッダーも導入します。
+
+```sh
+sudo apt install libsdl2-2.0-0 libsdl2-dev
+```
+
+FreeBSDではHareツールチェーンを含むパッケージを導入します。
+
+```sh
+pkg install hare-lang sdl2
+```
+
+## ビルド
+
+```sh
+git clone https://github.com/bubio/haregirl.git
+cd haregirl
+./scripts/build.sh
+```
+
+実行ファイルは `build/HareGirl` に生成されます。詳細な動作確認は次のコマンドで行えます。
+
+```sh
+./scripts/test.sh
+```
+
+デバッグ用ビルドは環境変数で切り替えられます。
+
+```sh
+HAREGIRL_BUILD_MODE=debug ./scripts/build.sh
+```
 
 ## ライセンス
 
