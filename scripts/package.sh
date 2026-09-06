@@ -11,6 +11,14 @@ fi
 platform=$1
 arch=$2
 root_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+# Keep the release matrix explicit.  This prevents accidentally publishing a
+# binary under a target name that is not supported by the project.
+
+if ! "$root_dir/scripts/targets.sh" valid "$platform" "$arch"; then
+		echo "unsupported target: $platform/$arch" >&2
+		exit 2
+fi
 dist_dir="$root_dir/dist"
 binary="$root_dir/build/HareGirl"
 
