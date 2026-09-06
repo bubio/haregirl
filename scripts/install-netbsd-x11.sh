@@ -3,7 +3,9 @@ set -eu
 
 # The small NetBSD VM images intentionally omit xbase.  pkgsrc's SDL2 package
 # links to the native X11 libraries, so restore the official xbase set first.
-case "$(uname -m)" in
+machine_name=$(uname -m)
+[ "$machine_name" = evbarm ] && machine_name=$(uname -p)
+case "$machine_name" in
 	amd64|x86_64) machine=amd64 ;;
 	aarch64|arm64) machine=evbarm-aarch64 ;;
 	*) echo "unsupported NetBSD architecture: $(uname -m)" >&2; exit 1 ;;

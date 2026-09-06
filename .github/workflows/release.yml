@@ -191,7 +191,7 @@ jobs:
           sync: rsync
           prepare: |
             pkg install -y binutils git scdoc sdl2 zip
-            sh scripts/install-hare-toolchain.sh
+            HARE_REF=0.26.0 HAREC_REF=0.26.0 sh scripts/install-hare-toolchain.sh
           run: |
             sh scripts/test.sh
             sh scripts/package.sh dragonfly amd64

@@ -13,7 +13,9 @@ case "$(uname -s)" in
 	*) echo "unsupported operating system: $(uname -s)" >&2; exit 1 ;;
 esac
 
-case "$(uname -m)" in
+machine_name=$(uname -m)
+[ "$platform" = netbsd ] && [ "$machine_name" = evbarm ] && machine_name=$(uname -p)
+case "$machine_name" in
 	x86_64|amd64) arch=x86_64 ;;
 	aarch64|arm64) arch=aarch64 ;;
 	riscv64) arch=riscv64 ;;
@@ -38,7 +40,11 @@ make -C "$work_dir/qbe" -j"$jobs"
 make -C "$work_dir/qbe" install PREFIX=/usr/local
 
 for component in harec hare; do
-	git clone --depth 1 "https://git.sr.ht/~sircmpwn/$component" "$work_dir/$component"
+	case "$component" in
+		harec) ref=${HAREC_REF:-master} ;;
+		hare) ref=${HARE_REF:-master} ;;
+	esac
+	git clone --depth 1 --branch "$ref" "https://git.sr.ht/~sircmpwn/$component" "$work_dir/$component"
 	cp "$work_dir/$component/configs/$platform.mk" "$work_dir/$component/config.mk"
 	# Hare's bootstrap Makefile has generated-interface dependencies which are
 	# not safe to parallelize on every BSD make implementation.
