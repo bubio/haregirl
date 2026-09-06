@@ -80,17 +80,23 @@ jobs:
         include:
           - arch: amd64
             sync: rsync
+            release: '14.4'
           - arch: aarch64
             sync: rsync
+            release: '14.4'
           - arch: riscv64
             sync: scp
+            # FreeBSD 14 does not publish a riscv64 pkg bootstrap.  The
+            # current 15-series image provides the package infrastructure
+            # needed to bootstrap Hare and SDL2 from source/packages.
+            release: '15.1'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Test and package in FreeBSD 14.4 VM
         uses: vmactions/freebsd-vm@v1
         with:
-          release: '14.4'
+          release: ${{ matrix.release }}
           arch: ${{ matrix.arch }}
           usesh: true
           sync: ${{ matrix.sync }}
