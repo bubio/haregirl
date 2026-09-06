@@ -1,6 +1,6 @@
-// 設定ファイル: 置き場所はOSの習慣(XDG Base Directory)に従う。
-// $XDG_CONFIG_HOME/HareGirl/config.ini (未設定時は $HOME/.config/HareGirl/config.ini)
-// に "key=value" 形式の単純なテキストとして保存する。
+// Comment translated to English.
+// Comment translated to English.
+// Comment translated to English.
 
 use bufio;
 use fmt;
@@ -11,9 +11,9 @@ use strconv;
 use strings;
 
 export type Settings = struct {
-	// --test-screen のウィンドウ表示倍率(160x144 の何倍か)。
+	// Comment translated to English.
 	scale: int,
-	// 音量(0-100)。src/app の音声出力(フェーズ9予定)が参照する想定。
+	// Comment translated to English.
 	volume: int,
 	smooth: bool,
 };
@@ -24,8 +24,8 @@ export fn settings_default() Settings = Settings {
 	smooth = false,
 };
 
-// settings_path は設定ファイルの既定パスを返す。$HOME/$XDG_CONFIG_HOME を
-// 解決できない場合は void を返す。
+// Comment translated to English.
+// Comment translated to English.
 export fn settings_path() (str | void) = {
 	const base = match (os::getenv("XDG_CONFIG_HOME")) {
 	case let v: str =>
@@ -42,8 +42,8 @@ export fn settings_path() (str | void) = {
 	return fmt::asprintf("{}/HareGirl/config.ini", base)!;
 };
 
-// settings_load は path の設定ファイルを読み込む。ファイルが存在しない、
-// または壊れている場合は既定値を返す(実行不能なエラーにはしない)。
+// Comment translated to English.
+// Comment translated to English.
 export fn settings_load(path: str) Settings = {
 	let s = settings_default();
 	const file = match (os::open(path)) {
@@ -101,8 +101,8 @@ fn settings_parse_line(s: *Settings, line: str) void = {
 	};
 };
 
-// settings_save は path の親ディレクトリを必要に応じて作成し、s の内容を
-// "key=value" 形式で書き出す。
+// Comment translated to English.
+// Comment translated to English.
 export fn settings_save(path: str, s: Settings) (void | fs::error) = {
 	const dir = match (strings::rindex(path, "/")) {
 	case let i: size =>

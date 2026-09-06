@@ -350,12 +350,11 @@ fn ppu_render_sprites(
 	};
 };
 
-// ppu_tick は以前1dotずつループしてppu_update_stat_line(STATの edge
-// detection)を毎dot呼んでいたが、モード/LYCが実際に変化するのはOAM/転送/
-// 行送りの境界dotだけなので、境界のないdot区間は一気にスキップできる
-// (STAT/LYC/LCDCレジスタへの書き込みによる境界外での変化はppu_write_stat/
-// ppu_write_lyc/ppu_write_lcdc側で個別にppu_update_stat_lineを呼んで
-// 拾うため、ここで毎dot呼ぶ必要はない)。
+// ppu_tick previously looped one dot at a time and called
+// ppu_update_stat_line (STAT edge detection) on every dot. Since mode/LYC
+// changes only at OAM, transfer, and line-advance boundaries, dot ranges with
+// no boundary can be skipped. Writes to STAT/LYC/LCDC are handled by the
+// corresponding write functions, so ppu_update_stat_line need not run per dot.
 export fn ppu_tick(bus: *Bus, cycles: int) void = {
 	const p = &bus.ppu;
 	if (!ppu_lcd_enabled(p)) return;
@@ -426,9 +425,9 @@ export fn ppu_write_lcdc(bus: *Bus, value: u8) void = {
 	};
 };
 
-// ppu_tick はモード/LYCの境界dotでしかppu_update_stat_lineを呼ばないため、
-// 走査線の途中でSTAT割り込み源を有効にした場合はここで即座に拾う必要がある
-// (境界まで待つと実機よりSTAT割り込みが遅れてしまう)。
+// Because ppu_tick calls ppu_update_stat_line only at mode/LYC boundaries,
+// enabling a STAT interrupt source mid-scanline must be handled immediately
+// here; waiting for the next boundary would delay the interrupt versus hardware.
 export fn ppu_write_stat(bus: *Bus, value: u8) void = {
 	bus.ppu.stat = (bus.ppu.stat & 0x87) | (value & 0x78);
 	ppu_update_stat_line(bus);

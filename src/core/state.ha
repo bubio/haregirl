@@ -1,11 +1,11 @@
-// セーブステート(実行状態の完全なスナップショット)。バッテリーバックアップ
-// カートリッジRAM(cart_ram_bytes/cart_ram_load、フェーズ5)とは別物で、CPU・
-// PPU・APU・タイマー・CGB拡張レジスタを含む実行状態全体を対象にする。
+// Save states are complete snapshots of execution state. They are separate from
+// battery-backed cartridge RAM (cart_ram_bytes/cart_ram_load, phase 5) and cover
+// the CPU, PPU, APU, timer, and CGB extension registers.
 //
-// ROM本体・カートリッジ種別(ROM/RAMバンク数・MBC種別・バッテリー有無)は
-// ROMヘッダーから決定的に再構築できるため保存しない。state_load は
-// bus_load_rom で同一ROMを読み込んだ後の Bus に対して呼び出す前提
-// (cart_ram_load と同じ前提)。
+// The ROM and cartridge type (ROM/RAM bank counts, MBC type, and battery flag)
+// are not saved because they can be deterministically rebuilt from the ROM header.
+// state_load expects the same ROM to have already been loaded into Bus with
+// bus_load_rom, just like cart_ram_load.
 
 const STATE_MAGIC: u32 = 0x47425253; // "SRBG" little-endian
 const STATE_VERSION: u32 = 2;
@@ -52,7 +52,7 @@ fn get_u32_array(r: *state_reader, out: []u32) void = {
 	for (let i = 0z; i < len(out); i += 1) out[i] = get_u32(r);
 };
 
-// state_save は Bus/Cpu の実行状態をバイト列へシリアライズする。
+// state_save serializes the Bus/Cpu execution state into a byte sequence.
 export fn state_save(bus: *Bus, cpu: *Cpu) []u8 = {
 	let sb = state_buf { data = [] };
 	const buf = &sb;
@@ -69,7 +69,7 @@ export fn state_save(bus: *Bus, cpu: *Cpu) []u8 = {
 	put_u32(buf, cpu.ime_delay: u32);
 	put_bool(buf, cpu.halt_bug); put_bool(buf, cpu.illegal_opcode);
 
-	// Bus (ROM本体・serial_log は対象外)
+	// Bus (excluding the ROM and serial_log)
 	put_u8(buf, bus.mode: u8);
 	for (let bank = 0z; bank < 2; bank += 1) put_bytes(buf, bus.vram[bank][..]);
 	put_u8(buf, bus.vram_bank);
@@ -104,7 +104,7 @@ export fn state_save(bus: *Bus, cpu: *Cpu) []u8 = {
 	put_u8(buf, p.bgpi); put_u8(buf, p.obpi);
 	put_u32_array(buf, p.frame_rgb[..]);
 
-	// APU (samples キューは対象外。呼び出し側で apu_take_samples 済み前提)
+	// APU (excluding the samples queue; the caller is expected to have called apu_take_samples)
 	const a = &bus.apu;
 	put_bool(buf, a.enabled); put_u8(buf, a.frame_seq_step);
 	put_u8(buf, a.ch1_sweep_pace); put_bool(buf, a.ch1_sweep_negate);
@@ -143,7 +143,7 @@ export fn state_save(bus: *Bus, cpu: *Cpu) []u8 = {
 	put_u8(buf, a.nr50); put_u8(buf, a.nr51);
 	put_u64(buf, a.sample_acc);
 
-	// Cartridge (可変部分のみ。ROM/RAM構成は再読込時にヘッダーから復元)
+	// Cartridge (mutable state only; ROM/RAM layout is restored from the header on reload)
 	const cart = &bus.cart;
 	put_bool(buf, cart.ram_enabled);
 	put_u8(buf, cart.rom_lo); put_u8(buf, cart.rom_hi);
@@ -159,9 +159,9 @@ export fn state_save(bus: *Bus, cpu: *Cpu) []u8 = {
 	return sb.data;
 };
 
-// state_load は state_save が生成したバイト列を Bus/Cpu へ復元する。
-// bus は state_save 時と同一ROMを bus_load_rom 済みでなければならない
-// (カートリッジRAM容量が一致しない場合は false を返し、状態を変更しない)。
+// state_load restores the byte sequence produced by state_save into Bus/Cpu.
+// bus must have the same ROM loaded with bus_load_rom; if cartridge RAM sizes
+// differ, it returns false without changing the destination state.
 export fn state_load(bus: *Bus, cpu: *Cpu, data: []u8) bool = {
 	let r = state_reader { data = data, pos = 0, ok = true };
 	if (get_u32(&r) != STATE_MAGIC) return false;
@@ -282,7 +282,7 @@ export fn state_load(bus: *Bus, cpu: *Cpu, data: []u8) bool = {
 		return false;
 	};
 
-	// ここまで読み取りが全て成功したので、実際の状態を書き換える。
+	// All reads succeeded, so replace the actual state.
 	*cpu = nc;
 	bus.vram = vram; bus.vram_bank = vram_bank;
 	bus.wram = wram; bus.wram_bank = wram_bank;

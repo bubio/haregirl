@@ -1,9 +1,9 @@
-// audio.ha: SDL2 の音声出力に必要な最小限のバインディング(SDL_OpenAudioDevice
-// のプッシュ方式 = callback を null にして SDL_QueueAudio でサンプルを供給する)。
+// audio.ha: Minimal SDL2 audio bindings. Audio is pushed by setting callback
+// to null and supplying samples through SDL_QueueAudio.
 use types::c;
 
 export def INIT_AUDIO: u32 = 0x00000010;
-export def AUDIO_S16SYS: u16 = 0x8010; // little-endian ホストでの AUDIO_S16LSB
+export def AUDIO_S16SYS: u16 = 0x8010; // AUDIO_S16LSB on little-endian hosts
 
 export type audio_spec = struct {
 	freq: int,

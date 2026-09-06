@@ -171,7 +171,7 @@ fn test_save_state() void = {
 	core::ppu_reset(&bus.ppu, core::Gb_Mode::Dmg);
 	core::apu_reset(&bus.apu);
 
-	// 状態を「初期値と違う」ことが分かるように変化させる。
+	// Change the state so it is visibly different from the initial values.
 	cpu.a = 0x42; cpu.pc = 0x1234; cpu.sp = 0xCAFE;
 	core::bus_write(&bus, 0x0000, 0x0A); // RAM enable
 	core::bus_write(&bus, 0x4000, 0x02); // RAM bank 2
@@ -183,8 +183,8 @@ fn test_save_state() void = {
 	const snapshot = core::state_save(&bus, &cpu);
 	defer free(snapshot);
 
-	// スナップショット後にさらに状態を変えてから復元し、復元後の値が
-	// スナップショット時点のものに戻ることを確認する。
+	// Change the state again after taking the snapshot, then restore it and
+	// verify that the snapshot values are recovered.
 	cpu.a = 0x00; cpu.pc = 0x0000;
 	core::bus_write(&bus, 0xA100, 0x00);
 	core::bus_tick(&bus, 999);
@@ -202,8 +202,8 @@ fn test_save_state() void = {
 	check(core::bus_read(&restored, 0xA100) == 0x77, "cartridge RAM restored");
 	check(restored.cycles == bus.cycles - 999, "bus cycle count restored");
 
-	// マジック/バージョンが壊れたデータや ROM 不一致は false を返し、
-	// 復元先の状態を変更しない。
+	// Corrupt magic/version data and a ROM mismatch return false without
+	// changing the destination state.
 	let garbage: [8]u8 = [0...];
 	let untouched: core::Bus = core::Bus { ... };
 	let untouched_cpu: core::Cpu = core::Cpu { ... };

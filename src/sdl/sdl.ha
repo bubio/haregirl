@@ -1,12 +1,12 @@
-// sdl は SDL2 の最低限の Hare バインディングを提供する。
+// sdl provides minimal Hare bindings for SDL2.
 //
-// 既存のバインディング(hare-sdl2)は現行の Hare でビルドできない(古い Hare の
-// エラーハンドリング/free 呼び出しの構文に依存している)ため、docs/BluePrint.md の
-// 指示に従い HareGirl が実際に使う分だけを自前で宣言する。SDL2 の C ヘッダの構造体
-// レイアウトをそのまま写しているため、命名は Hare の慣習より SDL の元名に合わせている。
+// The existing hare-sdl2 bindings do not build with current Hare because they
+// depend on obsolete error-handling/free syntax. Following docs/BluePrint.md,
+// declare only the SDL2 surface actually used by HareGirl. Struct layouts mirror
+// the SDL2 C headers, so names follow SDL rather than Hare conventions.
 use types::c;
 
-// SDL_Init に渡すサブシステムフラグ。
+// Subsystem flags passed to SDL_Init.
 export def INIT_VIDEO: u32 = 0x00000020;
 
 export @symbol("SDL_Init") fn init(flags: u32) int;

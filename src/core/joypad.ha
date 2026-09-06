@@ -1,7 +1,6 @@
-// joypad.ha: FF00 (P1/JOYP) レジスタ。方向キー(P14 選択)とボタン(P15 選択)を
-// それぞれ4bitのアクティブロー出力として合成する。ボタンが押された瞬間、対応する
-// 行が選択されていれば INT_JOYPAD を要求する(実機同様、選択されていない行の押下は
-// 割り込みを発生させない)。
+// joypad.ha: FF00 (P1/JOYP) register. The d-pad (P14 selected) and buttons
+// (P15 selected) are combined as separate 4-bit active-low outputs. When a
+// button is pressed, request INT_JOYPAD only if its row is selected, as on hardware.
 
 export const JOYPAD_RIGHT: u8 = 0x01;
 export const JOYPAD_LEFT: u8 = 0x02;
@@ -12,8 +11,8 @@ export const JOYPAD_B: u8 = 0x02;
 export const JOYPAD_SELECT: u8 = 0x04;
 export const JOYPAD_START: u8 = 0x08;
 
-// joypad_read は FF00 読み出し時の値を返す(bus.io[0x00] に保持された選択ビットと
-// 押下状態から合成する)。
+// joypad_read returns the FF00 read value, combining the selection bits stored
+// in bus.io[0x00] with the pressed state.
 export fn joypad_read(bus: *Bus) u8 = {
 	const select = bus.io[0x00] & 0x30;
 	let bits: u8 = 0x0F;
@@ -22,8 +21,7 @@ export fn joypad_read(bus: *Bus) u8 = {
 	return 0xC0 | select | bits;
 };
 
-// joypad_write_select は FF00 書き込み(P14/P15 選択ビットのみが書き込み可能)を
-// 反映する。
+// joypad_write_select applies an FF00 write; only the P14/P15 selection bits are writable.
 export fn joypad_write_select(bus: *Bus, value: u8) void = {
 	bus.io[0x00] = (bus.io[0x00] & 0x0F) | (value & 0x30);
 };
@@ -36,8 +34,9 @@ fn joypad_maybe_interrupt(bus: *Bus) void = {
 	if (bits != 0x0F) interrupt_request(bus, INT_JOYPAD);
 };
 
-// joypad_set_dpad/joypad_set_buttons は現在の押下状態(該当ビットが1で押下)を
-// まとめて設定する。新たに押されたボタンが選択中の行にあれば割り込みを要求する。
+// joypad_set_dpad/joypad_set_buttons set the current pressed state in bulk
+// (a corresponding bit of 1 means pressed). Request an interrupt when a newly
+// pressed button belongs to the selected row.
 export fn joypad_set_dpad(bus: *Bus, state: u8) void = {
 	bus.btn_dpad = state & 0x0F;
 	joypad_maybe_interrupt(bus);

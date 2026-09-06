@@ -1,8 +1,8 @@
-// input.ha: SDL2 のキーボードイベントを Game Boy ジョイパッド入力へ変換する
-// (フェーズ9: ゲームパッド入力のキーボード代替)。
+// input.ha: Convert SDL2 keyboard events into Game Boy joypad input
+// (phase 9: keyboard alternative for gamepad input).
 //
-// 割り当て: 十字キー = 矢印キー、A = Z、B = X、Start = Enter、Select = 右Shift。
-// Escape キーはウィンドウを閉じる操作と同様、終了要求として扱う。
+// Mapping: d-pad = arrow keys, A = Z, B = X, Start = Enter, Select = Right Shift.
+// Escape is treated as a quit request, like closing the window.
 
 use core;
 use sdl;
@@ -42,8 +42,8 @@ fn input_set_key(st: *Input_State, sc: i32, pressed: bool) void = {
 	};
 };
 
-// input_poll はイベントキューを排出し、ジョイパッド状態を bus へ反映する。
-// 終了要求(SDL_QUIT または Escape キー)があれば true を返す。
+// input_poll drains the event queue and applies joypad state to bus.
+// It returns true when a quit request (SDL_QUIT or Escape) is received.
 export fn input_poll(bus: *core::Bus, st: *Input_State) bool = {
 	let ev = sdl::event { pad = [0...] };
 	let quit = false;

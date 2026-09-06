@@ -1,7 +1,7 @@
 // Game Boy cartridge: header parsing and Memory Bank Controller (MBC)
 // emulation for the ROM (0x0000-0x7FFF) and external RAM (0xA000-0xBFFF)
 // address windows. MBC3's real-time clock registers are modeled as static
-// storage only (no wall-clock ticking); see docs/dev/PLAN.md フェーズ5 for
+	// storage only (no wall-clock ticking); see phase 5 in docs/dev/PLAN.md for
 // the rationale.
 
 export type Mbc_Type = enum {
@@ -201,8 +201,8 @@ export fn cart_write(bus: *Bus, addr: u16, value: u8) void = {
 fn cart_ram_bank_index(bus: *Bus, bank: int, addr: u16) (size | void) = {
 	const c = &bus.cart;
 	if (len(c.ram) == 0) return void;
-	// cart_ram_size (呼び出し元 cartridge_init 経由) は常に2の冪バンク数に
-	// なるため、剰余の代わりにビットマスクで折り返せる。
+	// cart_ram_size (via cartridge_init) always uses a power-of-two bank count,
+	// so wrapping can use a bit mask instead of a remainder operation.
 	const b = if (c.ram_bank_count > 0) bank & (c.ram_bank_count - 1) else 0;
 	const idx = (b: size) * 0x2000 + ((addr & 0x1FFF): size);
 	if (idx >= len(c.ram)) return void;

@@ -1,4 +1,4 @@
-// render.ha: SDL_Renderer / SDL_Texture の生成・描画。
+// render.ha: SDL_Renderer / SDL_Texture creation and rendering.
 
 export type renderer = opaque;
 export type texture = opaque;

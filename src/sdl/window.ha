@@ -1,4 +1,4 @@
-// window.ha: SDL_Window の生成・破棄。
+// window.ha: SDL_Window creation and destruction.
 use types::c;
 
 export type window = opaque;

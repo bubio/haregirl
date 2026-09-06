@@ -33,8 +33,8 @@ export type Bus = struct {
 	hdma_dst: u16,
 	hdma_active: bool,
 	hdma_remaining: u8,
-	// Joypad (FF00): アクティブハイの押下状態(1=押下)。実際のレジスタ値は
-	// joypad_read() で選択ビットと合成してアクティブローに変換する。
+	// Joypad (FF00): active-high pressed state (1 = pressed). The register value
+	// is combined with the selection bits by joypad_read() and converted to active-low.
 	btn_dpad: u8,
 	btn_buttons: u8,
 };

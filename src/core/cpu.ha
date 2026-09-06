@@ -5,9 +5,9 @@ export type Cpu = struct {
 	a: u8, f: u8, b: u8, c: u8, d: u8, e: u8, h: u8, l: u8,
 	sp: u16, pc: u16, ime: bool, halted: bool, stopped: bool,
 	ime_delay: int, halt_bug: bool, illegal_opcode: bool,
-	// last_op はフェッチした最後のオペコード。rom_runner_step が
-	// ブレークポイント検出用にオペコードをバス経由で再取得する
-	// (毎命令ごとにROMを二重に読む)無駄を避けるためのキャッシュ。
+	// last_op is the last fetched opcode. It is cached so rom_runner_step
+	// can detect breakpoints without fetching the opcode through the bus again
+	// and redundantly reading the ROM for every instruction.
 	last_op: u8,
 };
 // Upper-case spelling is retained for callers that model the hardware name.

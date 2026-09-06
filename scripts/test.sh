@@ -8,7 +8,7 @@ cd "$root_dir"
 version=$($root_dir/build/HareGirl --version)
 [ "$version" = "HareGirl 1.0.0" ]
 "$root_dir/build/HareGirl" --help
-# CLIヘルプは実行環境のロケールを尊重する。LC_ALL は LANG より優先される。
+# CLI help respects the process locale; LC_ALL takes precedence over LANG.
 english_help=$(LANG=ja_JP.UTF-8 LC_ALL=C "$root_dir/build/HareGirl" --help)
 case "$english_help" in
 	*"Usage: HareGirl"*"Show command-line help"*) : ;;
@@ -17,7 +17,7 @@ case "$english_help" in
 		exit 1
 		;;
 esac
-japanese_help=$(LANG=ja_JP.UTF-8 "$root_dir/build/HareGirl" --help)
+japanese_help=$(env -u LC_ALL LANG=ja_JP.UTF-8 "$root_dir/build/HareGirl" --help)
 case "$japanese_help" in
 	*"使用法: HareGirl"*"コマンドラインの使い方を表示"*) : ;;
 	*)
@@ -30,9 +30,9 @@ if "$root_dir/build/HareGirl" --unknown >/dev/null 2>&1; then
 	exit 1
 fi
 
-# SDL_VIDEODRIVER=dummy でヘッドレス環境(CI)でも --test-screen の一連の処理
-# (SDL2 初期化・ウィンドウ/レンダラー/テクスチャ生成・描画・破棄)が
-# エラーなく完走することを確認する。--frames で自動終了させる。
+# Verify that --test-screen completes without errors in a headless environment
+# (SDL2 initialization, window/renderer/texture creation, rendering, and cleanup).
+# Use --frames to make it exit automatically.
 SDL_VIDEODRIVER=dummy "$root_dir/build/HareGirl" --test-screen --frames 3
 
 # SDL_AUDIODRIVER=dummy でヘッドレス環境(CI)でも --test-audio の一連の処理

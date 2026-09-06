@@ -1,5 +1,5 @@
-// event.ha: イベントポーリング。SDL_QUIT の検出とキーボードの押下/離す(KEYDOWN/
-// KEYUP)のスキャンコード取得(フェーズ9: ゲームパッド入力のキーボード代替)を扱う。
+// event.ha: Event polling, SDL_QUIT detection, and keyboard scan codes for
+// KEYDOWN/KEYUP events (phase 9: keyboard alternative for gamepad input).
 
 export type event_type = enum u32 {
 	QUIT = 0x100,
@@ -7,8 +7,8 @@ export type event_type = enum u32 {
 	KEYUP = 0x301,
 };
 
-// よく使うスキャンコード(SDL_Scancode の値)。方向キーと Z/X/Enter/右Shift を
-// それぞれ Game Boy の十字キー/A/B/Start/Select に割り当てる。
+// Common scan codes (SDL_Scancode values). Map the arrow keys and Z/X/Enter/
+// Right Shift to the Game Boy d-pad/A/B/Start/Select respectively.
 export def SCANCODE_RETURN: i32 = 40;
 export def SCANCODE_RSHIFT: i32 = 229;
 export def SCANCODE_RIGHT: i32 = 79;
@@ -27,7 +27,7 @@ export type keysym = struct {
 };
 
 // SDL_KeyboardEvent (SDL2): type/timestamp/windowID/state/repeat/padding2/
-// padding3/keysym の順のレイアウト。
+// Layout order is padding3 followed by keysym.
 export type keyboard_event = struct {
 	type_: u32,
 	timestamp: u32,
@@ -39,7 +39,7 @@ export type keyboard_event = struct {
 	keysym: keysym,
 };
 
-// SDL_Event は C 側で 56 バイトの共用体(sizeof(SDL_Event) == 56、SDL2 2.26 で確認済み)。
+// SDL_Event is a 56-byte C union (sizeof(SDL_Event) == 56, verified with SDL2 2.26).
 export type event = union {
 	type_: u32,
 	key: keyboard_event,
