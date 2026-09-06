@@ -95,7 +95,7 @@ jobs:
           usesh: true
           sync: ${{ matrix.sync }}
           prepare: |
-            pkg install -y git sdl2 zip
+            pkg install -y binutils git scdoc sdl2 zip
             sh scripts/install-hare-toolchain.sh
           run: |
             sh scripts/test.sh
@@ -127,7 +127,7 @@ jobs:
           usesh: true
           sync: rsync
           prepare: |
-            pkg_add git sdl2 zip
+            pkg_add binutils git scdoc sdl2 zip
             echo 'export LDFLAGS="${LDFLAGS:-} -L/usr/local/lib"' >> "$HOME/.profile"
             sh scripts/install-hare-toolchain.sh
           run: |
@@ -160,7 +160,7 @@ jobs:
           usesh: true
           sync: rsync
           prepare: |
-            pkg_add git SDL2 zip
+            pkg_add binutils git scdoc SDL2 zip
             sh scripts/install-hare-toolchain.sh
           run: |
             sh scripts/test.sh
@@ -183,7 +183,7 @@ jobs:
           usesh: true
           sync: rsync
           prepare: |
-            pkg install -y git sdl2 zip
+            pkg install -y binutils git scdoc sdl2 zip
             sh scripts/install-hare-toolchain.sh
           run: |
             sh scripts/test.sh
