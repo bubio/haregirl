@@ -6,7 +6,7 @@ cd "$root_dir"
 
 "$root_dir/scripts/build.sh"
 version=$($root_dir/build/HareGirl --version)
-[ "$version" = "HareGirl 0.1.0" ]
+[ "$version" = "HareGirl 1.0.0" ]
 "$root_dir/build/HareGirl" --help
 # CLIヘルプは実行環境のロケールを尊重する。LC_ALL は LANG より優先される。
 english_help=$(LANG=ja_JP.UTF-8 LC_ALL=C "$root_dir/build/HareGirl" --help)

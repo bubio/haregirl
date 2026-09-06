@@ -6,7 +6,7 @@ use sdl;
 use strconv;
 use strings;
 
-const version: str = "0.1.0";
+const version: str = "1.0.0";
 
 // POSIXロケールの優先順位に従う。ja/ja_JP/ja_JP.UTF-8 のときだけ日本語を使い、
 // ロケールが未設定またはその他の言語なら英語を既定にする。
