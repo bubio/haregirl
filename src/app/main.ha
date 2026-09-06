@@ -8,35 +8,8 @@ use strings;
 
 const version: str = "1.0.0";
 
-// Comment translated to English.
-// Comment translated to English.
-fn help_is_japanese() bool = {
-	const lc_all = match (os::getenv("LC_ALL")) {
-	case let value: str => yield value;
-	case void => yield "";
-		};
-	if (len(lc_all) > 0) return locale_is_japanese(lc_all);
-
-	const lc_messages = match (os::getenv("LC_MESSAGES")) {
-	case let value: str => yield value;
-	case void => yield "";
-	};
-	if (len(lc_messages) > 0) return locale_is_japanese(lc_messages);
-
-	const lang = match (os::getenv("LANG")) {
-	case let value: str => yield value;
-	case void => yield "";
-	};
-	if (len(lang) > 0) return locale_is_japanese(lang);
-
-	return false;
-};
-
-fn locale_is_japanese(locale: str) bool =
-	strings::hasprefix(locale, "ja") || strings::hasprefix(locale, "JA");
-
 fn print_usage() void = {
-	if (!help_is_japanese()) {
+	if (!is_japanese()) {
 		fmt::println("Usage: HareGirl [options] game.gb|game.gbc")!;
 		fmt::println()!;
 		fmt::println("  -h, --help        Show command-line help")!;
@@ -97,7 +70,7 @@ fn print_usage() void = {
 // Comment translated to English.
 fn run_test_audio(frames: int) void = {
 	if (sdl::init(sdl::INIT_AUDIO) != 0) {
-		fmt::fatal("SDL_Init(AUDIO) に失敗しました");
+		fmt::fatal(msg("SDL_Init(AUDIO) failed", "SDL_Init(AUDIO) に失敗しました"));
 	};
 	defer sdl::quit();
 
@@ -115,7 +88,7 @@ fn run_test_audio(frames: int) void = {
 	let obtained = sdl::audio_spec { ... };
 	const dev = sdl::open_audio_device(null, 0, &desired, &obtained, 0);
 	if (dev == 0) {
-		fmt::fatal("SDL_OpenAudioDevice に失敗しました");
+		fmt::fatal(msg("SDL_OpenAudioDevice failed", "SDL_OpenAudioDevice に失敗しました"));
 	};
 	defer sdl::close_audio_device(dev);
 	sdl::pause_audio_device(dev, 0);
@@ -210,56 +183,56 @@ export fn main() void = {
 		case "--frames" =>
 			i += 1;
 			if (i >= len(args)) {
-				fmt::fatal("--frames requires an argument");
+				fmt::fatal(msg("--frames requires an argument", "--frames には引数が必要です"));
 			};
 			frames = match (strconv::stoi(args[i])) {
 			case let n: int =>
 				yield n;
 			case =>
-				fmt::fatalf("invalid --frames value: {}", args[i]);
+				fmt::fatalf(msg("invalid --frames value: {}", "--frames の値が不正です: {}"), args[i]);
 			};
 		case "--config" =>
 			i += 1;
 			if (i >= len(args)) {
-				fmt::fatal("--config requires an argument");
+				fmt::fatal(msg("--config requires an argument", "--config には引数が必要です"));
 			};
 			config_path = args[i];
 		case "--scale" =>
 			i += 1;
 			if (i >= len(args)) {
-				fmt::fatal("--scale requires an argument");
+				fmt::fatal(msg("--scale requires an argument", "--scale には引数が必要です"));
 			};
 			scale_override = match (strconv::stoi(args[i])) {
 			case let n: int =>
 				if (n <= 0) {
-					fmt::fatalf("invalid --scale value: {} (expected 1 or greater)", args[i]);
+					fmt::fatalf(msg("invalid --scale value: {} (expected 1 or greater)", "--scale の値が不正です: {} (1以上を指定してください)"), args[i]);
 				};
 				if (n > 8) yield 8;
 				yield n;
 			case =>
-				fmt::fatalf("invalid --scale value: {}", args[i]);
+				fmt::fatalf(msg("invalid --scale value: {}", "--scale の値が不正です: {}"), args[i]);
 			};
 		case "--shader" =>
 			i += 1;
 			if (i >= len(args)) {
-				fmt::fatal("--shader requires an argument");
+				fmt::fatal(msg("--shader requires an argument", "--shader には引数が必要です"));
 			};
 			if (args[i] == "smooth") {
 				shader_override = true;
 			} else if (args[i] != "nearest") {
-				fmt::fatalf("invalid --shader value: {} (expected nearest or smooth)", args[i]);
+				fmt::fatalf(msg("invalid --shader value: {} (expected nearest or smooth)", "--shader の値が不正です: {} (nearest または smooth を指定してください)"), args[i]);
 			};
 			if (args[i] == "nearest") shader_override = false;
 		case "--volume" =>
 			i += 1;
 			if (i >= len(args)) {
-				fmt::fatal("--volume requires an argument");
+				fmt::fatal(msg("--volume requires an argument", "--volume には引数が必要です"));
 			};
 			volume_override = match (strconv::stoi(args[i])) {
 			case let n: int =>
 				yield n;
 			case =>
-				fmt::fatalf("invalid --volume value: {}", args[i]);
+				fmt::fatalf(msg("invalid --volume value: {}", "--volume の値が不正です: {}"), args[i]);
 			};
 		case "--save-config" =>
 			save_config = true;
@@ -267,7 +240,7 @@ export fn main() void = {
 			print_config = true;
 		case =>
 			if (strings::hasprefix(args[i], "-")) {
-				fmt::fatalf("unknown option: {}", args[i]);
+				fmt::fatalf(msg("unknown option: {}", "不明なオプションです: {}"), args[i]);
 			};
 			rom_path = args[i];
 		};
@@ -275,7 +248,7 @@ export fn main() void = {
 
 	if (benchmark && (frames <= 0 || test_screen || test_audio
 		|| save_config || print_config || rom_path is void)) {
-		fmt::fatal("--benchmark requires a ROM and --frames N (N > 0), without test/config actions");
+		fmt::fatal(msg("--benchmark requires a ROM and --frames N (N > 0), without test/config actions", "--benchmark にはROMと --frames N (N > 0) が必要です（テスト/設定操作とは併用できません）"));
 	};
 
 	const path = match (config_path) {
@@ -286,7 +259,7 @@ export fn main() void = {
 		case let p: str =>
 			yield p;
 		case void =>
-			fmt::fatal("設定ファイルの場所を決定できません($HOME が未設定です)");
+		fmt::fatal(msg("cannot determine configuration path ($HOME is not set)", "設定ファイルの場所を決定できません($HOME が未設定です)"));
 		};
 	};
 
@@ -311,9 +284,9 @@ export fn main() void = {
 	if (save_config) {
 		match (settings_save(path, settings)) {
 		case void =>
-			fmt::println("設定を保存しました:", path)!;
+			fmt::println(msg("Configuration saved:", "設定を保存しました:"), path)!;
 		case let err: fs::error =>
-			fmt::fatalf("設定の保存に失敗しました: {}", fs::strerror(err));
+			fmt::fatalf(msg("failed to save configuration: {}", "設定の保存に失敗しました: {}"), fs::strerror(err));
 		};
 		return;
 	};

@@ -97,7 +97,7 @@ fn save_battery_ram(bus: *core::Bus, path: str) void = {
 	case let f: io::file =>
 		yield f;
 	case fs::error =>
-		fmt::errorfln("電池バックアップRAMの保存に失敗しました: {}", path)!;
+		fmt::errorfln(msg("Failed to save battery-backed RAM: {}", "電池バックアップRAMの保存に失敗しました: {}"), path)!;
 		return;
 	};
 	defer io::close(file)!;
@@ -110,34 +110,34 @@ fn save_state_file(runner: *core::Rom_Runner, path: str) void = {
 	const file = match (os::create(path, 0o644)) {
 	case let f: io::file => yield f;
 	case fs::error =>
-		fmt::errorfln("セーブステートの保存に失敗しました: {}", path)!;
+		fmt::errorfln(msg("Failed to save state: {}", "セーブステートの保存に失敗しました: {}"), path)!;
 		return;
 	};
 	defer io::close(file)!;
 	io::writeall(file, state)!;
-	fmt::printfln("セーブステートを保存しました: {}", path)!;
+	fmt::printfln(msg("Saved state: {}", "セーブステートを保存しました: {}"), path)!;
 };
 
 fn load_state_file(runner: *core::Rom_Runner, path: str) bool = {
 	const file = match (os::open(path)) {
 	case let f: io::file => yield f;
 	case fs::error =>
-		fmt::errorfln("セーブステートを開けません: {}", path)!;
+		fmt::errorfln(msg("Could not open state: {}", "セーブステートを開けません: {}"), path)!;
 		return false;
 	};
 	defer io::close(file)!;
 	const data = match (io::drain(file)) {
 	case let data: []u8 => yield data;
 	case =>
-		fmt::errorfln("セーブステートの読み込みに失敗しました: {}", path)!;
+		fmt::errorfln(msg("Failed to read state: {}", "セーブステートの読み込みに失敗しました: {}"), path)!;
 		return false;
 	};
 	defer free(data);
 	if (!core::state_load(&runner.bus, &runner.cpu, data)) {
-		fmt::errorfln("このROM用の有効なセーブステートではありません: {}", path)!;
+		fmt::errorfln(msg("State is not valid for this ROM: {}", "このROM用の有効なセーブステートではありません: {}"), path)!;
 		return false;
 	};
-	fmt::printfln("セーブステートを読み込みました: {}", path)!;
+	fmt::printfln(msg("Loaded state: {}", "セーブステートを読み込みました: {}"), path)!;
 	return true;
 };
 
@@ -178,25 +178,25 @@ export fn run_rom(rom_path: str, scale: int, volume: int, frames: int, benchmark
 	case let f: io::file =>
 		yield f;
 	case fs::error =>
-		fmt::fatalf("ROMを開けません: {}", rom_path);
+		fmt::fatalf(msg("Could not open ROM: {}", "ROMを開けません: {}"), rom_path);
 	};
 	const data = match (io::drain(file)) {
 	case let d: []u8 =>
 		yield d;
 	case =>
-		fmt::fatalf("ROMの読み込みに失敗しました: {}", rom_path);
+		fmt::fatalf(msg("Failed to read ROM: {}", "ROMの読み込みに失敗しました: {}"), rom_path);
 	};
 	io::close(file)!;
 	defer free(data);
 
 	if (len(data) < 0x150) {
-		fmt::fatal("ROMファイルが小さすぎます");
+		fmt::fatal(msg("ROM file is too small", "ROMファイルが小さすぎます"));
 	};
 	const mode = if ((data[0x143] & 0x80) != 0) core::Gb_Mode::Cgb else core::Gb_Mode::Dmg;
 
 	let runner: core::Rom_Runner = core::Rom_Runner { ... };
 	if (!core::rom_runner_init(&runner, data, mode)) {
-		fmt::fatalf("ROMの読み込みに失敗しました: {}", rom_path);
+		fmt::fatalf(msg("Failed to load ROM: {}", "ROMの読み込みに失敗しました: {}"), rom_path);
 	};
 	apply_apu_power_up(&runner.bus);
 	if (benchmark) {
@@ -211,7 +211,7 @@ export fn run_rom(rom_path: str, scale: int, volume: int, frames: int, benchmark
 	load_battery_ram(&runner.bus, save_path);
 
 	if (sdl::init(sdl::INIT_AUDIO) != 0) {
-		fmt::fatal("SDL_Init(AUDIO) に失敗しました");
+		fmt::fatal(msg("SDL_Init(AUDIO) failed", "SDL_Init(AUDIO) に失敗しました"));
 	};
 	defer sdl::quit();
 
@@ -229,7 +229,7 @@ export fn run_rom(rom_path: str, scale: int, volume: int, frames: int, benchmark
 	let obtained = sdl::audio_spec { ... };
 	const dev = sdl::open_audio_device(null, 0, &desired, &obtained, 0);
 	if (dev == 0) {
-		fmt::fatal("SDL_OpenAudioDevice に失敗しました");
+		fmt::fatal(msg("SDL_OpenAudioDevice failed", "SDL_OpenAudioDevice に失敗しました"));
 	};
 	defer sdl::close_audio_device(dev);
 	sdl::pause_audio_device(dev, 0);

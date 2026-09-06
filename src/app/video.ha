@@ -22,7 +22,7 @@ export type video = struct {
 // Comment translated to English.
 export fn video_init(scale: int, smooth: bool) (video | void) = {
 	if (sdl::init(sdl::INIT_VIDEO | sdl::INIT_GAMECONTROLLER) != 0) {
-		fmt::errorfln("SDL_Init に失敗しました: {}", c::tostr_unsafe(sdl::get_error()))!;
+		fmt::errorfln(msg("SDL_Init failed: {}", "SDL_Init に失敗しました: {}"), c::tostr_unsafe(sdl::get_error()))!;
 		return;
 	};
 
@@ -30,7 +30,7 @@ export fn video_init(scale: int, smooth: bool) (video | void) = {
 	case let t: *c::char =>
 		yield t;
 	case nomem =>
-		fmt::errorln("メモリ不足のためウィンドウタイトルを確保できませんでした")!;
+		fmt::errorln(msg("Could not allocate memory for the window title", "メモリ不足のためウィンドウタイトルを確保できませんでした"))!;
 		sdl::quit();
 		return;
 	};
@@ -48,7 +48,7 @@ export fn video_init(scale: int, smooth: bool) (video | void) = {
 	case let win: *sdl::window =>
 		yield win;
 	case null =>
-		fmt::errorfln("SDL_CreateWindow に失敗しました: {}", c::tostr_unsafe(sdl::get_error()))!;
+		fmt::errorfln(msg("SDL_CreateWindow failed: {}", "SDL_CreateWindow に失敗しました: {}"), c::tostr_unsafe(sdl::get_error()))!;
 		sdl::quit();
 		return;
 	};
@@ -63,7 +63,7 @@ export fn video_init(scale: int, smooth: bool) (video | void) = {
 		case let rend: *sdl::renderer =>
 			yield rend;
 		case null =>
-			fmt::errorfln("SDL_CreateRenderer に失敗しました: {}", c::tostr_unsafe(sdl::get_error()))!;
+			fmt::errorfln(msg("SDL_CreateRenderer failed: {}", "SDL_CreateRenderer に失敗しました: {}"), c::tostr_unsafe(sdl::get_error()))!;
 			sdl::destroy_window(win);
 			sdl::quit();
 			return;
@@ -79,7 +79,7 @@ export fn video_init(scale: int, smooth: bool) (video | void) = {
 	case let tex: *sdl::texture =>
 		yield tex;
 	case null =>
-		fmt::errorfln("SDL_CreateTexture に失敗しました: {}", c::tostr_unsafe(sdl::get_error()))!;
+		fmt::errorfln(msg("SDL_CreateTexture failed: {}", "SDL_CreateTexture に失敗しました: {}"), c::tostr_unsafe(sdl::get_error()))!;
 		sdl::destroy_renderer(rend);
 		sdl::destroy_window(win);
 		sdl::quit();
