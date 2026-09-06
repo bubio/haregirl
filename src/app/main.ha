@@ -12,20 +12,20 @@ const version: str = "0.1.0";
 // ロケールが未設定またはその他の言語なら英語を既定にする。
 fn help_is_japanese() bool = {
 	const lc_all = match (os::getenv("LC_ALL")) {
-		case let value: str => yield value;
-		case void => "";
+	case let value: str => yield value;
+	case void => yield "";
 		};
 	if (len(lc_all) > 0) return locale_is_japanese(lc_all);
 
 	const lc_messages = match (os::getenv("LC_MESSAGES")) {
 	case let value: str => yield value;
-	case void => "";
+	case void => yield "";
 	};
 	if (len(lc_messages) > 0) return locale_is_japanese(lc_messages);
 
 	const lang = match (os::getenv("LANG")) {
 	case let value: str => yield value;
-	case void => "";
+	case void => yield "";
 	};
 	if (len(lang) > 0) return locale_is_japanese(lang);
 
