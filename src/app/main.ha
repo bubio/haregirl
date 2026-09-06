@@ -8,7 +8,52 @@ use strings;
 
 const version: str = "0.1.0";
 
+// POSIXロケールの優先順位に従う。ja/ja_JP/ja_JP.UTF-8 のときだけ日本語を使い、
+// ロケールが未設定またはその他の言語なら英語を既定にする。
+fn help_is_japanese() bool = {
+	for (let name = 0z; name < 3; name += 1) {
+		const variable = match (name) {
+		case 0 => "LC_ALL";
+		case 1 => "LC_MESSAGES";
+		case => "LANG";
+		};
+		const locale = match (os::getenv(variable)) {
+		case let value: str => yield value;
+		case void => continue;
+		};
+		if (len(locale) == 0) continue;
+		return strings::hasprefix(locale, "ja")
+			|| strings::hasprefix(locale, "JA");
+	};
+	return false;
+};
+
 fn print_usage() void = {
+	if (!help_is_japanese()) {
+		fmt::println("Usage: HareGirl [options] game.gb|game.gbc")!;
+		fmt::println()!;
+		fmt::println("  -h, --help        Show command-line help")!;
+		fmt::println("  -v, --version     Show version information")!;
+		fmt::println("  --test-screen     Display the test screen and exit")!;
+		fmt::println("  --test-audio      Play test audio and exit")!;
+		fmt::println("  --benchmark       Benchmark a ROM for the specified number of frames")!;
+		fmt::println("  --frames N        Frame count for test or benchmark modes")!;
+		fmt::println("  --config PATH     Set the configuration file path")!;
+		fmt::println("  --scale N         Display scale (1-8; values above 8 use 8; default: 4)")!;
+		fmt::println("  --shader KIND     Scaling filter: nearest or smooth (default: nearest)")!;
+		fmt::println("  --volume N        Volume (0-100; default: 100)")!;
+		fmt::println("  --save-config     Save the active configuration and exit")!;
+		fmt::println("  --print-config    Print the active configuration and exit")!;
+		fmt::println()!;
+		fmt::println("Keyboard shortcuts while running a ROM:")!;
+		fmt::println("  Arrow keys        Direction pad")!;
+		fmt::println("  Z                 A")!;
+		fmt::println("  X                 B")!;
+		fmt::println("  Enter             Start")!;
+		fmt::println("  Right Shift       Select")!;
+		fmt::println("  Esc               Quit")!;
+		return;
+	};
 	fmt::println("使用法: HareGirl [options] game.gb|game.gbc")!;
 	fmt::println()!;
 	fmt::println("  -h, --help        コマンドラインの使い方を表示")!;

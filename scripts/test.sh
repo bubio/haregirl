@@ -8,6 +8,23 @@ cd "$root_dir"
 version=$($root_dir/build/HareGirl --version)
 [ "$version" = "HareGirl 0.1.0" ]
 "$root_dir/build/HareGirl" --help
+# CLIヘルプは実行環境のロケールを尊重する。LC_ALL は LANG より優先される。
+english_help=$(LANG=ja_JP.UTF-8 LC_ALL=C "$root_dir/build/HareGirl" --help)
+case "$english_help" in
+	*"Usage: HareGirl"*"Show command-line help"*) : ;;
+	*)
+		echo "English help was not selected for LC_ALL=C" >&2
+		exit 1
+		;;
+esac
+japanese_help=$(LANG=ja_JP.UTF-8 "$root_dir/build/HareGirl" --help)
+case "$japanese_help" in
+	*"使用法: HareGirl"*"コマンドラインの使い方を表示"*) : ;;
+	*)
+		echo "Japanese help was not selected for LANG=ja_JP.UTF-8" >&2
+		exit 1
+		;;
+esac
 if "$root_dir/build/HareGirl" --unknown >/dev/null 2>&1; then
 	echo "unknown option was accepted" >&2
 	exit 1
