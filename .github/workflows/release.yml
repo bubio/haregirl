@@ -77,7 +77,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [amd64, aarch64, riscv64]
+        include:
+          - arch: amd64
+            sync: rsync
+          - arch: aarch64
+            sync: rsync
+          - arch: riscv64
+            sync: scp
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -87,7 +93,7 @@ jobs:
           release: '14.4'
           arch: ${{ matrix.arch }}
           usesh: true
-          sync: rsync
+          sync: ${{ matrix.sync }}
           prepare: |
             pkg install -y hare-lang sdl2 zip curl python3
           run: |
