@@ -117,7 +117,20 @@ Options:
 | `--save-config` | Save the active configuration and exit |
 | `--print-config` | Print the active configuration and exit |
 
-The default keyboard controls during gameplay are the arrow keys (D-pad), `Z` (A), `X` (B), `Enter` (Start), right `Shift` (Select), `F5` (save state), `F7` (load state), and `Esc` (quit). Save states are stored beside the ROM with a `.state` extension and are rejected when they belong to a different ROM. SDL2-compatible game controllers use the D-pad or left stick for directions, the right face button for A, the bottom face button for B, Start/Options for Start, and Back/Share for Select. These bindings match BubiBoy Lite.
+Keyboard and SDL2-compatible game controller controls during gameplay:
+
+| Action | Keyboard | Controller |
+|---|---|---|
+| D-pad | Arrow keys | D-pad or left stick |
+| A | `Z` | Right face button |
+| B | `X` | Bottom face button |
+| Start | `Enter` | Start / Options |
+| Select | Right `Shift` | Back / Share |
+| Save state | `F5` | — |
+| Load state | `F7` | — |
+| Quit | `Esc` | — |
+
+These bindings match BubiBoy Lite. Save states are stored beside the ROM with a `.state` extension and are rejected when they belong to a different ROM.
 
 The `--help` language follows the runtime locale: Japanese for `ja` locales and English otherwise. `LC_ALL`, `LC_MESSAGES`, and `LANG` are checked in that order.
 
