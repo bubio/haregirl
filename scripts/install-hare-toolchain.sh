@@ -40,7 +40,13 @@ make -C "$work_dir/qbe" install PREFIX=/usr/local
 for component in harec hare; do
 	git clone --depth 1 "https://git.sr.ht/~sircmpwn/$component" "$work_dir/$component"
 	cp "$work_dir/$component/configs/$platform.mk" "$work_dir/$component/config.mk"
-	make -C "$work_dir/$component" -j"$jobs" ARCH="$arch"
+	# Hare's bootstrap Makefile has generated-interface dependencies which are
+	# not safe to parallelize on every BSD make implementation.
+	if [ "$component" = hare ]; then
+		make -C "$work_dir/$component" ARCH="$arch"
+	else
+		make -C "$work_dir/$component" -j"$jobs" ARCH="$arch"
+	fi
 	make -C "$work_dir/$component" install PREFIX=/usr/local ARCH="$arch"
 done
 
