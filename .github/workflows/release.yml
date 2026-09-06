@@ -126,11 +126,13 @@ jobs:
           arch: ${{ matrix.arch }}
           usesh: true
           sync: rsync
-          prepare: pkg_add hare sdl2 zip curl python3
+          prepare: |
+            pkg_add hare sdl2 zip curl python-3
+            echo 'export LDFLAGS="${LDFLAGS:-} -L/usr/local/lib"' >> "$HOME/.profile"
           run: |
             sh scripts/fetch-test-roms.sh
-            HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
-            sh scripts/package.sh openbsd ${{ matrix.arch }}
+            LDFLAGS="-L/usr/local/lib" HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
+            LDFLAGS="-L/usr/local/lib" sh scripts/package.sh openbsd ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
           name: haregirl-openbsd-${{ matrix.arch }}
@@ -157,7 +159,8 @@ jobs:
           arch: ${{ matrix.arch }}
           usesh: true
           sync: rsync
-          prepare: pkgin -y install hare sdl2 zip curl python3
+          prepare: |
+            pkg_add hare sdl2 zip curl python
           run: |
             sh scripts/fetch-test-roms.sh
             HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
@@ -179,7 +182,7 @@ jobs:
           release: '6.4'
           usesh: true
           sync: rsync
-          prepare: pkg install -y hare sdl2 zip curl python3
+          prepare: pkg install -y hare sdl2 zip curl python
           run: |
             sh scripts/fetch-test-roms.sh
             HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
