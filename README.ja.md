@@ -132,7 +132,7 @@ Game Boy / Game Boy Color ROMを起動するには、次のように実行しま
 | ステート読込 | `F7` | — |
 | 終了 | `Esc` | — |
 
-割り当てはBubiBoy Liteと同じです。セーブステートはROMと同じ場所へ拡張子 `.state` で保存され、別のROM用のステートは読み込まれません。
+セーブステートはROMと同じ場所へ拡張子 `.state` で保存され、別のROM用のステートは読み込まれません。
 
 `--help` の表示言語は実行環境のロケールに従います。`ja` 系のロケールでは日本語、その他では英語を表示します。`LC_ALL`、`LC_MESSAGES`、`LANG` の順に参照します。
 
@@ -179,4 +179,4 @@ HAREGIRL_BUILD_MODE=debug ./scripts/build.sh
 
 [MIT License](LICENSE)
 
-HareGirlのソースコードにはBubiBoy Lite由来のコードが含まれています。各ゲームのROM、SDL2、Hareのライセンスはそれぞれの著作権者および配布元の条件に従います。
+各ゲームのROM、SDL2、Hareのライセンスはそれぞれの著作権者および配布元の条件に従います。

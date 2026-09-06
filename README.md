@@ -130,7 +130,7 @@ Keyboard and SDL2-compatible game controller controls during gameplay:
 | Load state | `F7` | — |
 | Quit | `Esc` | — |
 
-These bindings match BubiBoy Lite. Save states are stored beside the ROM with a `.state` extension and are rejected when they belong to a different ROM.
+Save states are stored beside the ROM with a `.state` extension and are rejected when they belong to a different ROM.
 
 The `--help` language follows the runtime locale: Japanese for `ja` locales and English otherwise. `LC_ALL`, `LC_MESSAGES`, and `LANG` are checked in that order.
 
@@ -177,4 +177,4 @@ HAREGIRL_BUILD_MODE=debug ./scripts/build.sh
 
 [MIT License](LICENSE)
 
-HareGirl contains code derived from BubiBoy Lite. The ROMs for individual games, SDL2, and Hare are subject to the terms of their respective copyright holders and distributors.
+The ROMs for individual games, SDL2, and Hare are subject to the terms of their respective copyright holders and distributors.
