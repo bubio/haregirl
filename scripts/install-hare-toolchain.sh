@@ -55,6 +55,14 @@ for component in harec hare; do
 			"$work_dir/$component/makefiles/netbsd.aarch64.mk"
 	fi
 	cp "$work_dir/$component/configs/$platform.mk" "$work_dir/$component/config.mk"
+	# NetBSD's bmake does not let the ARCH command-line assignment override
+	# the value included from config.mk.  Harec embeds this default target, so
+	# update the copied configuration before building either component.
+	if [ "$arch" != x86_64 ]; then
+		sed "s/^ARCH = x86_64$/ARCH = $arch/" "$work_dir/$component/config.mk" \
+			> "$work_dir/$component/config.mk.new"
+		mv "$work_dir/$component/config.mk.new" "$work_dir/$component/config.mk"
+	fi
 	# Hare's bootstrap Makefile has generated-interface dependencies which are
 	# not safe to parallelize on every BSD make implementation.
 	if [ "$component" = hare ]; then
