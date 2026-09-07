@@ -43,7 +43,7 @@ fi
 # explicit link-time path.
 case "$(uname -s)" in
 	FreeBSD|DragonFly) link_flags="$link_flags -L/usr/local/lib" ;;
-	NetBSD) link_flags="$link_flags -L/usr/pkg/lib" ;;
+	NetBSD) link_flags="$link_flags -L/usr/pkg/lib -Wl,-R/usr/pkg/lib" ;;
 esac
 
 HAREPATH="$harepath" LDFLAGS="$link_flags" hare build "$@" -o "$output_dir/HareGirl" -l SDL2 "$root_dir/src/app"
