@@ -43,7 +43,7 @@ jobs:
           prepare: |
             apt-get update
             apt-get install -y build-essential git scdoc libsdl2-dev zip curl python3
-            sh scripts/install-hare-toolchain.sh
+            HARE_REF=0.26.0 HAREC_REF=0.26.0 sh scripts/install-hare-toolchain.sh
           run: |
             sh scripts/fetch-test-roms.sh
             HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
