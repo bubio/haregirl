@@ -48,6 +48,11 @@ for component in harec hare; do
 	if [ "$component" = hare ] && [ "$platform" = netbsd ] && [ "$arch" = aarch64 ]; then
 		# Upstream currently defines NetBSD siginfo only for x86_64.
 		cp scripts/netbsd-aarch64-siginfo.ha "$work_dir/$component/sys/+netbsd/+aarch64.ha"
+		sed 's|^sys_ha = |sys_ha = sys/+netbsd/+aarch64.ha |' \
+			"$work_dir/$component/makefiles/netbsd.aarch64.mk" \
+			> "$work_dir/$component/makefiles/netbsd.aarch64.mk.new"
+		mv "$work_dir/$component/makefiles/netbsd.aarch64.mk.new" \
+			"$work_dir/$component/makefiles/netbsd.aarch64.mk"
 	fi
 	cp "$work_dir/$component/configs/$platform.mk" "$work_dir/$component/config.mk"
 	# Hare's bootstrap Makefile has generated-interface dependencies which are
