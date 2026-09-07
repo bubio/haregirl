@@ -31,12 +31,14 @@ case "${HAREGIRL_BUILD_MODE:-release}" in
 		;;
 esac
 
-# Linux/aarch64 の gcc は PIE を既定にする。Hare のランタイムが参照する glibc
-# の environ へは PIC 非対応のコードを生成するため、この組み合わせだけ PIE を
-# 無効にする。FreeBSD のリンカへ Linux 固有の -no-pie を渡さないことが重要。
+# Linux/aarch64・riscv64 の gcc は PIE を既定にする。Hare のランタイムが参照する
+# glibc の environ へは PIC 非対応のコードを生成するため、これらの組み合わせだけ
+# PIE を無効にする。FreeBSD のリンカへ Linux 固有の -no-pie を渡さないことが重要。
 link_flags=${LDFLAGS:-}
-if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
-	link_flags="$link_flags -no-pie"
+if [ "$(uname -s)" = Linux ]; then
+	case "$(uname -m)" in
+		aarch64|riscv64) link_flags="$link_flags -no-pie" ;;
+	esac
 fi
 # BSD package managers install third-party libraries outside the base linker
 # search path. SDL2 headers are found by harec, but its library still needs an

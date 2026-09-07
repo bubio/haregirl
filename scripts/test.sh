@@ -97,13 +97,15 @@ harepath="$root_dir/src"
 for p in $stdlib_paths; do
 	harepath="$harepath:$p"
 done
-# build.sh 同様、Linux/aarch64 環境でのみ PIE リンクエラーを回避する。
+# build.sh 同様、Linux/aarch64・riscv64 環境で PIE リンクエラーを回避する。
 # Match the application mode so CI exercises the shipped core too.
 set --
 if [ "${HAREGIRL_BUILD_MODE:-release}" = release ]; then set -- -R; fi
 link_flags=${LDFLAGS:-}
-if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
-	link_flags="$link_flags -no-pie"
+if [ "$(uname -s)" = Linux ]; then
+	case "$(uname -m)" in
+		aarch64|riscv64) link_flags="$link_flags -no-pie" ;;
+	esac
 fi
 if [ "$(uname -s)" = FreeBSD ]; then
 	link_flags="$link_flags -L/usr/local/lib"
