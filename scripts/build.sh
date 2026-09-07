@@ -41,7 +41,7 @@ fi
 # FreeBSD packages install third-party libraries beneath /usr/local, which is
 # not in the base linker search path. SDL2 headers are found by harec, but its
 # library still needs this explicit link-time path.
-if [ "$(uname -s)" = FreeBSD ]; then
+if [ "$(uname -s)" = FreeBSD ] || [ "$(uname -s)" = DragonFly ]; then
 	link_flags="$link_flags -L/usr/local/lib"
 fi
 
