@@ -153,8 +153,6 @@ jobs:
         include:
           - arch: amd64
             release: '11'
-          - arch: aarch64
-            release: '11'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

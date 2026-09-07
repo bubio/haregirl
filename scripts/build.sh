@@ -38,11 +38,12 @@ link_flags=${LDFLAGS:-}
 if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
 	link_flags="$link_flags -no-pie"
 fi
-# FreeBSD packages install third-party libraries beneath /usr/local, which is
-# not in the base linker search path. SDL2 headers are found by harec, but its
-# library still needs this explicit link-time path.
-if [ "$(uname -s)" = FreeBSD ] || [ "$(uname -s)" = DragonFly ]; then
-	link_flags="$link_flags -L/usr/local/lib"
-fi
+# BSD package managers install third-party libraries outside the base linker
+# search path. SDL2 headers are found by harec, but its library still needs an
+# explicit link-time path.
+case "$(uname -s)" in
+	FreeBSD|DragonFly) link_flags="$link_flags -L/usr/local/lib" ;;
+	NetBSD) link_flags="$link_flags -L/usr/pkg/lib -Wl,-R/usr/pkg/lib" ;;
+esac
 
 HAREPATH="$harepath" LDFLAGS="$link_flags" hare build "$@" -o "$output_dir/HareGirl" -l SDL2 "$root_dir/src/app"
