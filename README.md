@@ -36,30 +36,41 @@ Compatibility and performance still have room for improvement. If you use commer
 
 ## Supported platforms
 
-- Ubuntu 22.04 or later (amd64 / arm64)
-- FreeBSD 14.4 or later (x64)
+The [release workflow](.github/workflows/release.yml) builds, tests, and packages native executables for the following targets. Versions below identify the workflow build environments.
 
-GitHub Releases provide zip archives containing native executables for these targets:
+| OS | Build environment | Architectures |
+|---|---|---|
+| Linux | Ubuntu 22.04 | amd64 |
+| Linux | Ubuntu 24.04 | arm64 / riscv64 |
+| FreeBSD | 14.4 | amd64 / aarch64 |
+| OpenBSD | 7.8 | amd64 / aarch64 |
+| NetBSD | 11 | amd64 |
+| DragonFlyBSD | 6.4 | amd64 |
+
+When a release is published and all target builds succeed, the following zip archives are attached to the GitHub Release. Other workflow runs make them available as Actions artifacts.
 
 | Target | Archive |
 |---|---|
 | Linux amd64 | `HareGirl-<version>-linux-amd64.zip` |
 | Linux arm64 | `HareGirl-<version>-linux-arm64.zip` |
+| Linux riscv64 | `HareGirl-<version>-linux-riscv64.zip` |
 | FreeBSD amd64 | `HareGirl-<version>-freebsd-amd64.zip` |
+| FreeBSD aarch64 | `HareGirl-<version>-freebsd-aarch64.zip` |
+| OpenBSD amd64 | `HareGirl-<version>-openbsd-amd64.zip` |
+| OpenBSD aarch64 | `HareGirl-<version>-openbsd-aarch64.zip` |
+| NetBSD amd64 | `HareGirl-<version>-netbsd-amd64.zip` |
+| DragonFlyBSD amd64 | `HareGirl-<version>-dragonfly-amd64.zip` |
 
-Each archive contains `HareGirl` and `LICENSE`. The system SDL2 library is required at runtime.
+Each archive contains `HareGirl` and `LICENSE`. The system SDL2 library is required at runtime. Run these installation commands as root (using `sudo` on Ubuntu).
 
-On Ubuntu:
+| OS | Install SDL2 |
+|---|---|
+| Ubuntu | `sudo apt install libsdl2-2.0-0` |
+| FreeBSD / DragonFlyBSD | `pkg install sdl2` |
+| OpenBSD | `pkg_add sdl2` |
+| NetBSD | `pkg_add SDL2` |
 
-```sh
-sudo apt install libsdl2-2.0-0
-```
-
-On FreeBSD:
-
-```sh
-pkg install sdl2
-```
+NetBSD also requires the X11 libraries used by SDL2. On minimal installations, use `install-netbsd-x11.sh` as described below. From the extracted archive directory, launch with `./HareGirl path/to/game.gb`.
 
 ## Usage
 
@@ -138,40 +149,112 @@ Unless a configuration path is specified, HareGirl uses `$XDG_CONFIG_HOME/HareGi
 
 ## Building from source
 
-- [Hare](https://harelang.org/)
-- SDL2 (runtime library and development headers)
-
-On Ubuntu, install the development headers as well:
-
-```sh
-sudo apt install libsdl2-2.0-0 libsdl2-dev
-```
-
-On FreeBSD, install the package containing the Hare toolchain:
-
-```sh
-pkg install hare-lang sdl2
-```
-
-## Build
+You need the [Hare](https://harelang.org/) toolchain and SDL2 development libraries. Build natively on the target OS and architecture. Install Git first, then clone the repository:
 
 ```sh
 git clone https://github.com/bubio/haregirl.git
 cd haregirl
-./scripts/build.sh
 ```
 
-The executable is generated at `build/HareGirl`. Run the test suite with:
+Run the dependency and toolchain installation commands below as root (using `sudo` on Ubuntu), from the repository root. `install-hare-toolchain.sh` builds QBE, harec, and Hare from source and installs them under `/usr/local`. It defaults to the harec and Hare `master` branches and detects the native OS and architecture.
+
+### Ubuntu / Linux
 
 ```sh
-./scripts/test.sh
+sudo apt-get update
+sudo apt-get install -y build-essential git scdoc libsdl2-dev zip curl python3
+sudo sh scripts/install-hare-toolchain.sh
 ```
 
-Select a debug build with:
+For riscv64, replace the toolchain installation command above with this command to use Hare 0.26.0, matching the workflow:
 
 ```sh
-HAREGIRL_BUILD_MODE=debug ./scripts/build.sh
+sudo env HARE_REF=0.26.0 HAREC_REF=0.26.0 sh scripts/install-hare-toolchain.sh
 ```
+
+### FreeBSD
+
+On amd64, use the packaged Hare toolchain:
+
+```sh
+pkg install -y git hare-lang sdl2 zip curl python3
+```
+
+On aarch64, build the toolchain from source:
+
+```sh
+pkg install -y binutils git scdoc sdl2 zip
+sh scripts/install-hare-toolchain.sh
+```
+
+### OpenBSD
+
+```sh
+pkg_add binutils git scdoc sdl2 zip
+sh scripts/install-hare-toolchain.sh
+```
+
+Set the SDL2 library search path in the shell used for building, testing, and packaging:
+
+```sh
+export LDFLAGS="${LDFLAGS:-} -L/usr/local/lib"
+```
+
+### NetBSD
+
+Restore missing X11 libraries on minimal installations, then install dependencies and the toolchain. The X11 helper makes no changes if the required library is already present.
+
+```sh
+sh scripts/install-netbsd-x11.sh
+pkg_add binutils git scdoc SDL2 zip
+sh scripts/install-hare-toolchain.sh
+```
+
+### DragonFlyBSD
+
+```sh
+pkg install -y binutils git scdoc sdl2 zip
+HARE_REF=0.26.0 HAREC_REF=0.26.0 sh scripts/install-hare-toolchain.sh
+```
+
+Select GNU bfd, which supports Hare's linker script, in the shell used for building, testing, and packaging:
+
+```sh
+export LDFLAGS="${LDFLAGS:-} -fuse-ld=bfd"
+```
+
+### Build and test
+
+After installing dependencies, run these commands as a regular user. Ensure `/usr/local/bin` is in `PATH` and `hare version` works.
+
+```sh
+sh scripts/build.sh
+./build/HareGirl path/to/game.gb
+sh scripts/test.sh
+```
+
+The executable is generated at `build/HareGirl`. The default is a release build. Select a debug build with:
+
+```sh
+HAREGIRL_BUILD_MODE=debug sh scripts/build.sh
+```
+
+To require external test ROMs, matching the Linux release workflow, install `curl` and `python3`, then run:
+
+```sh
+sh scripts/fetch-test-roms.sh
+HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
+```
+
+### Create a release archive
+
+With `zip` installed, pass the platform and architecture matching your build machine. For example, on Linux amd64:
+
+```sh
+sh scripts/package.sh linux amd64
+```
+
+The script builds natively and packages the result as `dist/HareGirl-<version>-linux-amd64.zip`; it does not cross-compile. Use the target labels from the archive table above for other platforms (for example, `freebsd aarch64`, `openbsd amd64`, `netbsd amd64`, or `dragonfly amd64`).
 
 ## License
 

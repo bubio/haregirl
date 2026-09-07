@@ -38,30 +38,41 @@ Hare言語で書かれた、SDL2をマルチメディア層に利用するGame B
 
 ## 対応プラットフォーム
 
-- Ubuntu 22.04以降（amd64 / arm64）
-- FreeBSD 14.4以降（x64）
+[リリースワークフロー](.github/workflows/release.yml)では、次の環境でネイティブビルド・テスト・zip作成を行います。記載したバージョンはワークフローのビルド環境です。
 
-GitHub Releasesでは、次のネイティブ実行ファイルを含むzipを配布します。
+| OS | ビルド環境 | アーキテクチャ |
+|---|---|---|
+| Linux | Ubuntu 22.04 | amd64 |
+| Linux | Ubuntu 24.04 | arm64 / riscv64 |
+| FreeBSD | 14.4 | amd64 / aarch64 |
+| OpenBSD | 7.8 | amd64 / aarch64 |
+| NetBSD | 11 | amd64 |
+| DragonFlyBSD | 6.4 | amd64 |
+
+リリース公開時に全対象のビルドが成功すると、次のzipがGitHub Releaseに添付されます。リリース以外の実行では、Actionsのアーティファクトから取得できます。
 
 | 対象 | 配布ファイル |
 |---|---|
 | Linux amd64 | `HareGirl-<version>-linux-amd64.zip` |
 | Linux arm64 | `HareGirl-<version>-linux-arm64.zip` |
+| Linux riscv64 | `HareGirl-<version>-linux-riscv64.zip` |
 | FreeBSD amd64 | `HareGirl-<version>-freebsd-amd64.zip` |
+| FreeBSD aarch64 | `HareGirl-<version>-freebsd-aarch64.zip` |
+| OpenBSD amd64 | `HareGirl-<version>-openbsd-amd64.zip` |
+| OpenBSD aarch64 | `HareGirl-<version>-openbsd-aarch64.zip` |
+| NetBSD amd64 | `HareGirl-<version>-netbsd-amd64.zip` |
+| DragonFlyBSD amd64 | `HareGirl-<version>-dragonfly-amd64.zip` |
 
-各zipには `HareGirl` と `LICENSE` が含まれます。実行時にはシステムのSDL2が必要です。
+各zipには `HareGirl` と `LICENSE` が含まれます。実行時にはシステムのSDL2が必要です。次のコマンドは管理者権限で実行してください（Ubuntuでは `sudo` を使用）。
 
-Ubuntuでは次のように導入します。
+| OS | SDL2の導入 |
+|---|---|
+| Ubuntu | `sudo apt install libsdl2-2.0-0` |
+| FreeBSD / DragonFlyBSD | `pkg install sdl2` |
+| OpenBSD | `pkg_add sdl2` |
+| NetBSD | `pkg_add SDL2` |
 
-```sh
-sudo apt install libsdl2-2.0-0
-```
-
-FreeBSDでは次のように導入します。
-
-```sh
-pkg install sdl2
-```
+NetBSDではSDL2が利用するX11ライブラリも必要です。最小構成の環境では、下記のビルド手順にある `install-netbsd-x11.sh` で補えます。zipを展開したディレクトリでは `./HareGirl path/to/game.gb` で起動します。
 
 ## 使い方
 
@@ -140,40 +151,112 @@ Game Boy / Game Boy Color ROMを起動するには、次のように実行しま
 
 ## ソースからビルドする場合
 
-- [Hare](https://harelang.org/)
-- SDL2（実行時ライブラリおよびビルド用ヘッダー）
-
-Ubuntuではビルド用ヘッダーも導入します。
-
-```sh
-sudo apt install libsdl2-2.0-0 libsdl2-dev
-```
-
-FreeBSDではHareツールチェーンを含むパッケージを導入します。
-
-```sh
-pkg install hare-lang sdl2
-```
-
-## ビルド
+[Hare](https://harelang.org/)ツールチェーンとSDL2の開発用ライブラリが必要です。対象OS・アーキテクチャ上でネイティブビルドします。まずGitを導入し、リポジトリを取得してください。
 
 ```sh
 git clone https://github.com/bubio/haregirl.git
 cd haregirl
-./scripts/build.sh
 ```
 
-実行ファイルは `build/HareGirl` に生成されます。詳細な動作確認は次のコマンドで行えます。
+以下の依存パッケージ導入とツールチェーンのインストールは管理者権限で実行します（Ubuntuでは `sudo` を使用）。スクリプトはリポジトリのルートから実行してください。`install-hare-toolchain.sh` はQBE・harec・Hareをソースから構築して `/usr/local` に導入します。既定ではharec・Hareの `master` を使用し、OSとアーキテクチャを自動判定します。
+
+### Ubuntu / Linux
 
 ```sh
-./scripts/test.sh
+sudo apt-get update
+sudo apt-get install -y build-essential git scdoc libsdl2-dev zip curl python3
+sudo sh scripts/install-hare-toolchain.sh
 ```
 
-デバッグ用ビルドは環境変数で切り替えられます。
+riscv64では、ワークフローと同じHare 0.26.0を指定して、上記のツールチェーン導入コマンドを置き換えます。
 
 ```sh
-HAREGIRL_BUILD_MODE=debug ./scripts/build.sh
+sudo env HARE_REF=0.26.0 HAREC_REF=0.26.0 sh scripts/install-hare-toolchain.sh
 ```
+
+### FreeBSD
+
+amd64ではパッケージ版のHareを使用します。
+
+```sh
+pkg install -y git hare-lang sdl2 zip curl python3
+```
+
+aarch64ではツールチェーンをソースから構築します。
+
+```sh
+pkg install -y binutils git scdoc sdl2 zip
+sh scripts/install-hare-toolchain.sh
+```
+
+### OpenBSD
+
+```sh
+pkg_add binutils git scdoc sdl2 zip
+sh scripts/install-hare-toolchain.sh
+```
+
+ビルド・テスト・パッケージ作成を実行するシェルで、SDL2のライブラリ検索パスを設定します。
+
+```sh
+export LDFLAGS="${LDFLAGS:-} -L/usr/local/lib"
+```
+
+### NetBSD
+
+最小構成の環境で不足するX11ライブラリを補い、依存パッケージとツールチェーンを導入します。X11の確認・導入スクリプトは、必要なライブラリが存在する場合は何も変更しません。
+
+```sh
+sh scripts/install-netbsd-x11.sh
+pkg_add binutils git scdoc SDL2 zip
+sh scripts/install-hare-toolchain.sh
+```
+
+### DragonFlyBSD
+
+```sh
+pkg install -y binutils git scdoc sdl2 zip
+HARE_REF=0.26.0 HAREC_REF=0.26.0 sh scripts/install-hare-toolchain.sh
+```
+
+Hareのリンカスクリプトに対応するGNU bfdを使用するため、ビルド・テスト・パッケージ作成を実行するシェルで次を設定します。
+
+```sh
+export LDFLAGS="${LDFLAGS:-} -fuse-ld=bfd"
+```
+
+### ビルドとテスト
+
+依存関係の導入後は、通常のユーザー権限で実行できます。`/usr/local/bin` が `PATH` に含まれ、`hare version` が実行できることを確認してください。
+
+```sh
+sh scripts/build.sh
+./build/HareGirl path/to/game.gb
+sh scripts/test.sh
+```
+
+実行ファイルは `build/HareGirl` に生成されます。既定はリリースビルドです。デバッグ用ビルドは環境変数で切り替えられます。
+
+```sh
+HAREGIRL_BUILD_MODE=debug sh scripts/build.sh
+```
+
+Linuxのリリースワークフローと同様に外部テストROMを必須としてテストするには、`curl` と `python3` を導入したうえで実行します。
+
+```sh
+sh scripts/fetch-test-roms.sh
+HAREGIRL_REQUIRE_TEST_ROMS=1 sh scripts/test.sh
+```
+
+### 配布用zipの作成
+
+`zip` を導入したうえで、現在のビルド環境に一致するプラットフォーム名とアーキテクチャを指定します。次はLinux amd64の例です。このスクリプトはネイティブビルドを行い、指定した名前で梱包します。クロスコンパイルは行いません。
+
+```sh
+sh scripts/package.sh linux amd64
+```
+
+出力先は `dist/HareGirl-<version>-linux-amd64.zip` です。ほかの対象は上の配布ファイル表に合わせて指定してください（例: `freebsd aarch64`、`openbsd amd64`、`netbsd amd64`、`dragonfly amd64`）。
 
 ## ライセンス
 
