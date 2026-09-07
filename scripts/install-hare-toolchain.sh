@@ -45,6 +45,10 @@ for component in harec hare; do
 		hare) ref=${HARE_REF:-master} ;;
 	esac
 	git clone --depth 1 --branch "$ref" "https://git.sr.ht/~sircmpwn/$component" "$work_dir/$component"
+	if [ "$component" = hare ] && [ "$platform" = netbsd ] && [ "$arch" = aarch64 ]; then
+		# Upstream currently defines NetBSD siginfo only for x86_64.
+		cp scripts/netbsd-aarch64-siginfo.ha "$work_dir/$component/sys/+netbsd/+aarch64.ha"
+	fi
 	cp "$work_dir/$component/configs/$platform.mk" "$work_dir/$component/config.mk"
 	# Hare's bootstrap Makefile has generated-interface dependencies which are
 	# not safe to parallelize on every BSD make implementation.
