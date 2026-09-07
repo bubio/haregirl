@@ -153,8 +153,6 @@ jobs:
         include:
           - arch: amd64
             release: '11'
-          - arch: aarch64
-            release: '11'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -168,10 +166,7 @@ jobs:
           prepare: |
             sh scripts/install-netbsd-x11.sh
             pkg_add binutils git scdoc SDL2 zip
-            case "${{ matrix.arch }}" in
-              aarch64) HARE_REF=0.26.0 HAREC_REF=0.26.0 ;;
-            esac
-            HARE_REF="${HARE_REF:-}" HAREC_REF="${HAREC_REF:-}" sh scripts/install-hare-toolchain.sh
+            sh scripts/install-hare-toolchain.sh
           run: |
             sh scripts/test.sh
             sh scripts/package.sh netbsd ${{ matrix.arch }}
