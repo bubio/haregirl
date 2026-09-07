@@ -167,8 +167,7 @@ jobs:
           sync: rsync
           prepare: |
             sh scripts/install-netbsd-x11.sh
-            pkg_add pkgin
-            pkgin -y install binutils git scdoc SDL2 zip
+            pkg_add binutils git scdoc SDL2 zip
             sh scripts/install-hare-toolchain.sh
           run: |
             sh scripts/test.sh
