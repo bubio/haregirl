@@ -36,6 +36,12 @@ elif command -v sysctl >/dev/null 2>&1; then
 fi
 
 git clone --depth 1 https://github.com/omenos/mirror-qbe.git "$work_dir/qbe"
+# NetBSD reports aarch64 hardware as "evbarm".  QBE recognizes neither that
+# name nor uname -p, so without this override it silently selects x86_64.
+case "$arch" in
+	aarch64) printf '%s\n' '#define Deftgt T_arm64' > "$work_dir/qbe/config.h" ;;
+	riscv64) printf '%s\n' '#define Deftgt T_rv64' > "$work_dir/qbe/config.h" ;;
+esac
 make -C "$work_dir/qbe" -j"$jobs"
 make -C "$work_dir/qbe" install PREFIX=/usr/local
 
