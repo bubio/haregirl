@@ -17,13 +17,9 @@
   </a>
 </p>
 
-<p align="center">
-  <img src="docs/CoverArt.jpg" alt="Cover" width="*" height="*">
-</p>
 
 HareGirl is a Game Boy Color emulator written in Hare, using SDL2 as its multimedia layer. Start it from the command line by specifying a ROM.
 
-The emulation core is based on [BubiBoy Lite](https://github.com/bubio/BubiBoyLite) (Odin + SDL2, MIT License), ported to Hare.
 
 ## Status
 

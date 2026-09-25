@@ -17,14 +17,8 @@
   </a>
 </p>
 
-<p align="center">
-  <img src="docs/CoverArt.jpg" alt="Cover" width="*" height="*">
-</p>
 
 Hare言語で書かれた、SDL2をマルチメディア層に利用するGame Boy Colorエミュレーターです。コマンドラインからROMを指定して起動します。
-
-エミュレーションコアは[BubiBoy Lite](https://github.com/bubio/BubiBoyLite)（Odin + SDL2、MIT License）をHareへ移植したものです。
-
 
 
 ## 現状
