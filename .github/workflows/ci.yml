@@ -2,8 +2,20 @@ name: CI
 
 on:
   push:
+    paths:
+      - 'LICENSE'
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/release.yml'
   pull_request:
-
+    paths:
+      - 'LICENSE'
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/release.yml'
+      
 env:
   QBE_REPO: https://github.com/omenos/mirror-qbe.git
   HAREC_REPO: https://git.sr.ht/~sircmpwn/harec
