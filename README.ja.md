@@ -77,34 +77,34 @@ HareGirl [options] game.gb|game.gbc
 Game Boy / Game Boy Color ROMを起動するには、次のように実行します。
 
 ```sh
-./build/HareGirl path/to/game.gb
-./build/HareGirl path/to/game.gbc
+./HareGirl path/to/game.gb
+./HareGirl path/to/game.gbc
 ```
 
 画面倍率、音量、補間方法はコマンドラインで一時的に変更できます。
 
 ```sh
-./build/HareGirl --scale 3 --volume 80 --shader smooth path/to/game.gb
+./HareGirl --scale 3 --volume 80 --shader smooth path/to/game.gb
 ```
 
 設定を保存または確認するには、次のように実行します。
 
 ```sh
-./build/HareGirl --scale 3 --volume 80 --shader smooth --save-config
-./build/HareGirl --print-config
+./HareGirl --scale 3 --volume 80 --shader smooth --save-config
+./HareGirl --print-config
 ```
 
 テスト画面・テスト音声はROMなしで起動できます。`--frames N` を指定すると、Nフレーム描画または再生した後に終了します。
 
 ```sh
-./build/HareGirl --test-screen --frames 300
-./build/HareGirl --test-audio --frames 300
+./HareGirl --test-screen --frames 300
+./HareGirl --test-audio --frames 300
 ```
 
 ベンチマークにはROMと正のフレーム数が必要です。
 
 ```sh
-./build/HareGirl --benchmark --frames 3600 path/to/game.gb
+./HareGirl --benchmark --frames 3600 path/to/game.gb
 ```
 
 オプション:

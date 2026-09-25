@@ -77,34 +77,34 @@ HareGirl [options] game.gb|game.gbc
 Run a Game Boy / Game Boy Color ROM:
 
 ```sh
-./build/HareGirl path/to/game.gb
-./build/HareGirl path/to/game.gbc
+./HareGirl path/to/game.gb
+./HareGirl path/to/game.gbc
 ```
 
 Temporarily change the display scale, volume, and interpolation method from the command line:
 
 ```sh
-./build/HareGirl --scale 3 --volume 80 --shader smooth path/to/game.gb
+./HareGirl --scale 3 --volume 80 --shader smooth path/to/game.gb
 ```
 
 Save or inspect the current configuration:
 
 ```sh
-./build/HareGirl --scale 3 --volume 80 --shader smooth --save-config
-./build/HareGirl --print-config
+./HareGirl --scale 3 --volume 80 --shader smooth --save-config
+./HareGirl --print-config
 ```
 
 Launch the test screen or test audio without a ROM. With `--frames N`, the program exits after rendering or playing N frames.
 
 ```sh
-./build/HareGirl --test-screen --frames 300
-./build/HareGirl --test-audio --frames 300
+./HareGirl --test-screen --frames 300
+./HareGirl --test-audio --frames 300
 ```
 
 Benchmarking requires a ROM and a positive frame count:
 
 ```sh
-./build/HareGirl --benchmark --frames 3600 path/to/game.gb
+./HareGirl --benchmark --frames 3600 path/to/game.gb
 ```
 
 Options:
